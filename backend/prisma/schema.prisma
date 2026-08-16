@@ -1,0 +1,124 @@
+// Aegis Gateway - Core Data Model (Phase 1: Foundation)
+// This covers auth, multi-tenancy (org/app), provider key storage, and audit logging.
+// Governance policies, cache stats tables, and analytics rollups get added in Phase 2.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Enums ─────────────────────────────────────────────
+
+enum Role {
+  ADMIN // full access: manage users, keys, policies, billing
+  DEVELOPER // can create apps, view own analytics, call gateway
+  VIEWER // read-only dashboard access
+}
+
+enum RequestStatus {
+  SUCCESS
+  ERROR
+  CACHED
+  BLOCKED // blocked by governance/policy layer
+  RATE_LIMITED
+}
+
+enum Provider {
+  OPENAI
+  GEMINI
+  CLAUDE
+  OLLAMA
+}
+
+// ── Core Models ───────────────────────────────────────
+
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users        User[]
+  applications Application[]
+  providerKeys ProviderKey[]
+}
+
+model User {
+  id             String   @id @default(uuid())
+  email          String   @unique
+  passwordHash   String
+  name           String
+  role           Role     @default(DEVELOPER)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  apiKeys    ApiKey[]
+  auditLogs  AuditLog[]
+}
+
+// Applications = the client apps calling Aegis (each gets its own gateway API key)
+model Application {
+  id             String   @id @default(uuid())
+  name           String
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  createdAt      DateTime @default(now())
+
+  apiKeys   ApiKey[]
+  auditLogs AuditLog[]
+}
+
+// Gateway API keys — what client apps use to call Aegis (NOT the provider keys)
+model ApiKey {
+  id            String   @id @default(uuid())
+  key           String   @unique // hashed before storage
+  label         String
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id])
+  createdById   String
+  createdBy     User     @relation(fields: [createdById], references: [id])
+  isActive      Boolean  @default(true)
+  lastUsedAt    DateTime?
+  createdAt     DateTime @default(now())
+}
+
+// Provider credentials — stored centrally, encrypted at rest (see lib/crypto.js)
+model ProviderKey {
+  id             String   @id @default(uuid())
+  provider       Provider
+  label          String
+  encryptedKey   String
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+}
+
+// Every request through the gateway gets logged here — this powers audit + analytics
+model AuditLog {
+  id            String        @id @default(uuid())
+  applicationId String
+  application   Application   @relation(fields: [applicationId], references: [id])
+  userId        String?
+  user          User?         @relation(fields: [userId], references: [id])
+  provider      Provider
+  model         String
+  status        RequestStatus
+  promptTokens  Int           @default(0)
+  completionTokens Int        @default(0)
+  totalTokens   Int           @default(0)
+  latencyMs     Int
+  costUsd       Float         @default(0)
+  cacheHit      Boolean       @default(false)
+  errorMessage  String?
+  createdAt     DateTime      @default(now())
+
+  @@index([applicationId, createdAt])
+  @@index([provider, createdAt])
+}
