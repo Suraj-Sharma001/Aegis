@@ -129,4 +129,4 @@ you should see a row for the request you just made.
 | `npx prisma migrate dev --name X` | Create a new migration after schema changes |
 | `docker compose down` | Stop Postgres/Redis |
 | `docker compose down -v` | Stop AND wipe DB data (careful) |
-| Embedding service | `uvicorn app:app --port 8001` | `Aegis/embedding-service/` |
+| `uvicorn app:app --port 8001`| Embedding service | Aegis/embedding-service |
