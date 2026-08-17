@@ -20,6 +20,12 @@ out/
 backend/node_modules/.prisma/
 backend/generated/
 
+# ── Python / embedding service ──────────────────────
+embedding-service/venv/
+embedding-service/__pycache__/
+embedding-service/**/__pycache__/
+*.pyc
+
 # ── Logs ──────────────────────────────────────────────
 *.log
 npm-debug.log*

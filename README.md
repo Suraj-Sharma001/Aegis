@@ -129,20 +129,4 @@ you should see a row for the request you just made.
 | `npx prisma migrate dev --name X` | Create a new migration after schema changes |
 | `docker compose down` | Stop Postgres/Redis |
 | `docker compose down -v` | Stop AND wipe DB data (careful) |
-
-## What's deliberately NOT here yet (next phases)
-- Semantic caching (Redis is wired up for rate limiting only right now)
-- Governance layer: PII detection, prompt injection scanning, policy engine
-- Intelligent routing (currently just infers provider from model name prefix
-  — see `services/providers/index.js`, that's the seam to extend)
-- Provider failover
-- Cost tracking (audit log has a `costUsd` field, currently hardcoded to 0 —
-  needs a per-model pricing table)
-- Admin dashboard frontend (Next.js) — `frontend/` is empty on purpose
-
-## If something breaks
-- **"Missing required env var"** → you didn't copy `.env.example` to `.env`, or forgot a value
-- **Prisma migrate fails to connect** → Postgres container isn't up yet, run `docker ps` to check
-- **`ECONNREFUSED` on Redis** → same idea, check `docker ps`
-- **Gateway call returns provider error** → check you put a real key for that
-  specific provider in `.env` and restarted the server after editing `.env`
+| Embedding service | `uvicorn app:app --port 8001` | `Aegis/embedding-service/` |
