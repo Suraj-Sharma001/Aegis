@@ -38,7 +38,7 @@ The base layer everything else sits on top of.
 | **Aegis API key** (`aegis_...`) | Proves *your app* is allowed to call the gateway |
 | **Provider key** (Gemini/OpenAI key, in `.env`) | Lets *Aegis itself* call the real AI provider |
 
----
+----------------------------------------------------------------------------------------------------------------------------------------
 
 ## Phase 2 — Smart (Semantic) Caching ✅ Done
 
@@ -66,7 +66,7 @@ separate AI calls — even though the answer is the same.
 That's a ~98% latency drop on cache hits, and proof it understands
 *meaning*, not just exact text.
 
----
+----------------------------------------------------------------------------------------------------------------------------------------
 
 ## Phase 3 — Cost Tracking ✅ Done
 
@@ -151,18 +151,105 @@ savings, and per-provider breakdown.
 - ✅ Phase 1 — Foundation (auth, gateway, provider routing, audit log)
 - ✅ Phase 2 — Semantic caching (Redis + sentence-transformers)
 - ✅ Phase 3 — Cost tracking (pricing table, savings, analytics endpoint)
+# Phase 4: Governance / PII Detection — What Changed
 
-## What's Next (Not Started Yet)
+Only 2 files this time — simpler patch than last phase.
 
-- **Governance/PII layer** — detect and mask sensitive data (names, card
-  numbers, secrets) in prompts before they reach the AI provider. This is
-  featured in the presentation deck (slide 9) and is the other genuinely
-  "hard" differentiator feature worth building next.
-- **RBAC-based model restrictions** — e.g. interns only get local models
-  (deck slide 8) — the `Role` field exists in the DB but this specific
-  restriction logic isn't wired in yet.
-- **Provider key rotation / per-org provider keys** — currently all
-  customers share one `.env` with your keys; a real enterprise version
-  would let each org bring their own (the `ProviderKey` DB table already
-  supports this, just not wired into routing).
-- **Admin dashboard** — a visual UI (Next.js) instead of Postman/PowerShell.
+
+----------------------------------------------------------------------------------------------------------------------------------------
+
+##  ✅ Phase 4: Governance / PII Detection
+
+
+## 1. NEW FILE
+`backend/src/services/governance.service.js`
+→ Copy to: `D:\Projects\Aegis\backend\src\services\governance.service.js`
+
+## 2. OVERWRITE
+`backend/src/controllers/gateway.controller.js`
+→ Replace: `D:\Projects\Aegis\backend\src\controllers\gateway.controller.js`
+(Delete everything in the existing file, paste this in.)
+
+---
+
+## What this adds
+
+A governance/security scan that runs **before anything else** on every
+gateway request — before the cache check, before any AI provider is
+called. It looks for:
+
+- Email addresses
+- Phone numbers
+- Credit card numbers
+- Aadhaar-style 12-digit ID numbers
+- SSN-style numbers (XXX-XX-XXXX)
+- API keys (OpenAI `sk-...`, Anthropic `sk-ant-...`, AWS `AKIA.../ASIA...`)
+- Generic secrets (patterns like `api_key: <long string>`)
+
+**Default policy: BLOCK.** If anything sensitive is found, the request is
+rejected with a `422` status — it never reaches Gemini/OpenAI/Claude/Ollama
+at all. This is logged in your audit trail with `status: BLOCKED`.
+
+## How to test it
+
+**1. Send a prompt WITHOUT sensitive data (should work normally):**
+```powershell
+Invoke-RestMethod -Uri "http://localhost:8080/v1/chat/completions" -Method Post -Headers @{"x-api-key"="YOUR_KEY"} -ContentType "application/json" -Body '{"model":"gemini-3.5-flash-lite","messages":[{"role":"user","content":"What is the capital of Japan?"}]}'
+```
+Should go through as normal.
+
+**2. Send a prompt WITH an email address (should get blocked):**
+```powershell
+Invoke-RestMethod -Uri "http://localhost:8080/v1/chat/completions" -Method Post -Headers @{"x-api-key"="YOUR_KEY"} -ContentType "application/json" -Body '{"model":"gemini-3.5-flash-lite","messages":[{"role":"user","content":"Send a follow-up email to john.doe@example.com about the meeting"}]}'
+```
+Expect a `422` error response like:
+```json
+{
+  "error": "Request blocked by governance policy",
+  "reason": "The prompt contains data that looks sensitive and was not sent to any AI provider.",
+  "findings": [{"type":"EMAIL","label":"Email address","preview":"jo***om"}]
+}
+```
+Note: `Invoke-RestMethod` in PowerShell treats non-2xx responses as errors
+by default, so this might show as a red error in your terminal rather than
+a clean JSON block — that's expected PowerShell behavior, not a bug. If you
+want to see the JSON body cleanly, wrap it:
+```powershell
+try {
+  Invoke-RestMethod -Uri "..." -Method Post -Headers @{...} -ContentType "application/json" -Body '...'
+} catch {
+  $_.ErrorDetails.Message
+}
+```
+
+**3. Try a fake API key:**
+```powershell
+Invoke-RestMethod -Uri "http://localhost:8080/v1/chat/completions" -Method Post -Headers @{"x-api-key"="YOUR_KEY"} -ContentType "application/json" -Body '{"model":"gemini-3.5-flash-lite","messages":[{"role":"user","content":"Why is my key sk-abc123def456ghi789jkl012mno345 not working?"}]}'
+```
+Should also get blocked, flagged as `OPENAI_KEY`.
+
+**4. Confirm the audit log** — check that blocked attempts show up:
+```powershell
+npx prisma studio
+```
+Open the `AuditLog` table — you should see rows with `status: BLOCKED` and
+an `errorMessage` describing what was found (never the actual sensitive
+value itself — only a masked preview is ever logged, by design).
+
+## Known limitation (worth mentioning in your report)
+
+This is regex/pattern-based, not an ML model — it catches structured data
+well (emails, cards, keys) but won't catch things like a name, a home
+address written in prose, or context-dependent sensitive info. A named
+entity recognition (NER) model layered on top would be the natural next
+step for a production version — good to mention as future work if asked.
+
+## One thing to watch for
+
+The `CREDIT_CARD` and `AADHAAR` patterns are both "N consecutive digits" —
+they're broad on purpose (real card/ID numbers vary in formatting), but
+that means a long phone number or an order ID could occasionally trigger a
+false positive. If that happens during your demo, it's not a bug — it's
+the policy correctly erring on the side of caution. Worth having one
+"clean" test prompt ready to show it working normally alongside the
+blocked one, so you can demonstrate both cases confidently.

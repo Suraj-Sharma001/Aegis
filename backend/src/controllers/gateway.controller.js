@@ -3,18 +3,41 @@ import { routeCompletion, inferProvider } from '../services/providers/index.js';
 import { chatCompletionSchema, validate } from '../utils/validators.js';
 import { checkCache, storeInCache } from '../services/semanticCache.service.js';
 import { calculateCost } from '../services/pricing.service.js';
+import { scanMessages, maskFindings } from '../services/governance.service.js';
 
 // POST /v1/chat/completions
 // This is Aegis's "unified API" — one endpoint, any provider, based on `model`.
-// Phase 2: added semantic cache check before the provider call — if a
-// similar-enough prompt was answered before, return that instantly instead
-// of paying for/waiting on another provider round-trip.
-// Still TODO: governance/PII scan (before routeCompletion), and cost
-// calculation using a per-model pricing table instead of the placeholder 0.
+// Phase 4: added a governance/PII scan as the FIRST check — runs before
+// caching and before the provider call, so sensitive data never leaves
+// the gateway at all. Default policy is BLOCK (safer than trying to mask
+// and forward — partial masking can still leak context).
 export async function chatCompletion(req, res, next) {
   const startTime = Date.now();
   try {
     const data = validate(chatCompletionSchema, req.body);
+
+    // ── 0. Governance / PII scan — runs before anything else ────────
+    const findings = scanMessages(data.messages);
+    if (findings.length > 0) {
+      await prisma.auditLog.create({
+        data: {
+          applicationId: req.application.id,
+          provider: inferProvider(data.model),
+          model: data.model,
+          status: 'BLOCKED',
+          latencyMs: Date.now() - startTime,
+          costUsd: 0,
+          cacheHit: false,
+          errorMessage: `Blocked: ${findings.map((f) => f.label).join(', ')}`,
+        },
+      });
+
+      return res.status(422).json({
+        error: 'Request blocked by governance policy',
+        reason: 'The prompt contains data that looks sensitive and was not sent to any AI provider.',
+        findings: maskFindings(findings),
+      });
+    }
 
     // ── 1. Check semantic cache first ──────────────────────────────
     const cached = await checkCache({ model: data.model, messages: data.messages });
