@@ -127,6 +127,7 @@ you should see a row for the request you just made.
 | `npm run dev` | Start server with hot-reload |
 | `npx prisma studio` | Visual DB browser |
 | `npx prisma migrate dev --name X` | Create a new migration after schema changes |
+| `docker compose up -d` | Stop Postgres/Redis |
 | `docker compose down` | Stop Postgres/Redis |
 | `docker compose down -v` | Stop AND wipe DB data (careful) |
 | `venv\Scripts\activate` | Activate the venv first |

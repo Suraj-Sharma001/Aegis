@@ -62,3 +62,29 @@ export async function createApiKey(req, res, next) {
     next(err);
   }
 }
+
+// GET /applications/:id/keys — list keys already issued for an application.
+// Never returns the raw key (it isn't stored — only the hash is), only
+// metadata: label, when it was created, when it was last used, and whether
+// it's still active. This is what lets the dashboard show "you have 3 keys
+// issued" instead of only ever showing the single most-recently-created one.
+export async function listApiKeys(req, res, next) {
+  try {
+    const { id: applicationId } = req.params;
+
+    const application = await prisma.application.findFirst({
+      where: { id: applicationId, organizationId: req.user.organizationId },
+    });
+    if (!application) return res.status(404).json({ error: 'Application not found' });
+
+    const keys = await prisma.apiKey.findMany({
+      where: { applicationId },
+      select: { id: true, label: true, isActive: true, lastUsedAt: true, createdAt: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json(keys);
+  } catch (err) {
+    next(err);
+  }
+}

@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { Shell } from '../../components/Shell';
-import { api, getToken } from '../../lib/api';
+import { api, getToken, SUPPORTED_MODELS } from '../../lib/api';
 
 const PIE_COLORS = ['#3ED6B5', '#232E45'];
 
@@ -27,7 +27,7 @@ export default function AnalyticsPage() {
 
   // Live test console state
   const [gatewayKey, setGatewayKey] = useState('');
-  const [model, setModel] = useState('gemini-3.5-flash-lite');
+  const [model, setModel] = useState(SUPPORTED_MODELS[2].models[0]); // default: gemini-3.5-flash-lite
   const [prompt, setPrompt] = useState('What is the capital of France?');
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState(null);
@@ -173,12 +173,21 @@ export default function AnalyticsPage() {
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-1">
               <label className="block text-xs text-muted mb-1.5 font-medium">Model</label>
-              <input
-                required
+              <select
                 value={model}
                 onChange={(e) => setModel(e.target.value)}
-                className="focus-ring w-full bg-surface2 border border-border rounded-md px-3 py-2 text-sm font-mono outline-none"
-              />
+                className="focus-ring w-full bg-surface2 border border-border rounded-md px-3 py-2 text-sm font-mono outline-none appearance-none cursor-pointer"
+              >
+                {SUPPORTED_MODELS.map((group) => (
+                  <optgroup key={group.provider} label={group.provider}>
+                    {group.models.map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
             </div>
             <div className="col-span-2">
               <label className="block text-xs text-muted mb-1.5 font-medium">Prompt</label>

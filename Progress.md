@@ -160,18 +160,6 @@ Only 2 files this time — simpler patch than last phase.
 
 ##  ✅ Phase 4: Governance / PII Detection
 
-
-## 1. NEW FILE
-`backend/src/services/governance.service.js`
-→ Copy to: `D:\Projects\Aegis\backend\src\services\governance.service.js`
-
-## 2. OVERWRITE
-`backend/src/controllers/gateway.controller.js`
-→ Replace: `D:\Projects\Aegis\backend\src\controllers\gateway.controller.js`
-(Delete everything in the existing file, paste this in.)
-
----
-
 ## What this adds
 
 A governance/security scan that runs **before anything else** on every

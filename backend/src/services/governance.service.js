@@ -38,7 +38,11 @@ const PATTERNS = {
     label: 'SSN-style ID number',
   },
   OPENAI_KEY: {
-    regex: /\bsk-[a-zA-Z0-9]{20,}\b/g,
+    // Covers both the legacy format (sk-<alphanumeric>) and the newer
+    // project-scoped format (sk-proj-<alphanumeric with hyphens/underscores>).
+    // The old pattern only matched [a-zA-Z0-9], which stopped at the first
+    // hyphen in "sk-proj-..." keys and let them through undetected.
+    regex: /\bsk-(proj-)?[a-zA-Z0-9_-]{20,}\b/g,
     label: 'OpenAI API key',
   },
   ANTHROPIC_KEY: {
