@@ -32,8 +32,6 @@ export async function listApplications(req, res, next) {
 }
 
 // POST /applications/:id/keys — issue a new gateway API key for an application
-// The raw key is returned ONCE — only the hash is stored, same pattern as
-// GitHub/Stripe API keys. Client apps use this as x-api-key on gateway calls.
 export async function createApiKey(req, res, next) {
   try {
     const { id: applicationId } = req.params;
@@ -56,18 +54,13 @@ export async function createApiKey(req, res, next) {
       },
     });
 
-    // This is the only time the raw key is ever visible — tell the user to save it.
     res.status(201).json({ apiKey: rawKey, warning: 'Save this key now — it will not be shown again.' });
   } catch (err) {
     next(err);
   }
 }
 
-// GET /applications/:id/keys — list keys already issued for an application.
-// Never returns the raw key (it isn't stored — only the hash is), only
-// metadata: label, when it was created, when it was last used, and whether
-// it's still active. This is what lets the dashboard show "you have 3 keys
-// issued" instead of only ever showing the single most-recently-created one.
+// GET /applications/:id/keys — list keys already issued for an application
 export async function listApiKeys(req, res, next) {
   try {
     const { id: applicationId } = req.params;
@@ -84,6 +77,46 @@ export async function listApiKeys(req, res, next) {
     });
 
     res.json(keys);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// GET /applications/:id/logs — recent raw audit log entries for an application.
+// This powers the Logs page — a per-request view, distinct from the
+// aggregated numbers on the Analytics/Usage page. Same underlying table
+// (AuditLog), just unaggregated and capped to the most recent N rows.
+export async function listAuditLogs(req, res, next) {
+  try {
+    const { id: applicationId } = req.params;
+    const limit = Math.min(Number(req.query.limit) || 50, 200);
+
+    const application = await prisma.application.findFirst({
+      where: { id: applicationId, organizationId: req.user.organizationId },
+    });
+    if (!application) return res.status(404).json({ error: 'Application not found' });
+
+    const logs = await prisma.auditLog.findMany({
+      where: { applicationId },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      select: {
+        id: true,
+        provider: true,
+        model: true,
+        status: true,
+        promptTokens: true,
+        completionTokens: true,
+        totalTokens: true,
+        latencyMs: true,
+        costUsd: true,
+        cacheHit: true,
+        errorMessage: true,
+        createdAt: true,
+      },
+    });
+
+    res.json(logs);
   } catch (err) {
     next(err);
   }

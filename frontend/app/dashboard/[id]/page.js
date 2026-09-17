@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { Shell } from '../../components/Shell';
-import { api, getToken, SUPPORTED_MODELS } from '../../lib/api';
+import { api, getToken } from '../../lib/api';
 
 const PIE_COLORS = ['#3ED6B5', '#232E45'];
 
@@ -25,13 +25,6 @@ export default function AnalyticsPage() {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
 
-  // Live test console state
-  const [gatewayKey, setGatewayKey] = useState('');
-  const [model, setModel] = useState(SUPPORTED_MODELS[2].models[0]); // default: gemini-3.5-flash-lite
-  const [prompt, setPrompt] = useState('What is the capital of France?');
-  const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState(null);
-
   useEffect(() => {
     if (!getToken()) {
       router.replace('/login');
@@ -46,21 +39,6 @@ export default function AnalyticsPage() {
       setData(result);
     } catch (err) {
       setError(err.data?.error || err.message);
-    }
-  }
-
-  async function handleTest(e) {
-    e.preventDefault();
-    setTesting(true);
-    setTestResult(null);
-    try {
-      const result = await api.testCompletion({ gatewayKey, model, prompt });
-      setTestResult(result);
-      loadAnalytics(); // refresh stats after a real call
-    } catch (err) {
-      setTestResult({ ok: false, data: { error: err.message } });
-    } finally {
-      setTesting(false);
     }
   }
 
@@ -93,13 +71,20 @@ export default function AnalyticsPage() {
 
   return (
     <Shell>
-      <Link href="/dashboard" className="text-sm text-muted hover:text-ink transition-colors">
-        ← Applications
-      </Link>
+      <div className="flex items-center justify-between mb-3">
+        <Link href="/dashboard" className="text-sm text-muted hover:text-ink transition-colors">
+          ← Applications
+        </Link>
+        <Link
+          href="/playground"
+          className="focus-ring text-sm text-bg bg-accent font-semibold px-3 py-1.5 rounded-md hover:bg-accentDim transition-colors"
+        >
+          Try in Playground →
+        </Link>
+      </div>
 
       <h1 className="font-display font-semibold text-2xl mt-3 mb-8">Analytics</h1>
 
-      {/* Stat cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <StatCard label="Total requests" value={data.totalRequests} />
         <StatCard
@@ -112,8 +97,7 @@ export default function AnalyticsPage() {
         <StatCard label="Saved via cache" value={`$${data.estimatedSavingsUsd.toFixed(6)}`} accent />
       </div>
 
-      {/* Charts */}
-      <div className="grid md:grid-cols-2 gap-4 mb-8">
+      <div className="grid md:grid-cols-2 gap-4">
         <div className="bg-surface border border-border rounded-xl p-5">
           <p className="text-xs text-muted font-medium mb-4">Cache performance</p>
           {data.totalRequests > 0 ? (
@@ -124,9 +108,7 @@ export default function AnalyticsPage() {
                     <Cell key={i} fill={PIE_COLORS[i]} stroke="none" />
                   ))}
                 </Pie>
-                <Tooltip
-                  contentStyle={{ background: '#131B2E', border: '1px solid #232E45', borderRadius: 8, fontSize: 12 }}
-                />
+                <Tooltip contentStyle={{ background: '#131B2E', border: '1px solid #232E45', borderRadius: 8, fontSize: 12 }} />
               </PieChart>
             </ResponsiveContainer>
           ) : (
@@ -142,9 +124,7 @@ export default function AnalyticsPage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#232E45" />
                 <XAxis dataKey="provider" stroke="#8B95AC" fontSize={11} />
                 <YAxis stroke="#8B95AC" fontSize={11} />
-                <Tooltip
-                  contentStyle={{ background: '#131B2E', border: '1px solid #232E45', borderRadius: 8, fontSize: 12 }}
-                />
+                <Tooltip contentStyle={{ background: '#131B2E', border: '1px solid #232E45', borderRadius: 8, fontSize: 12 }} />
                 <Bar dataKey="requests" fill="#3ED6B5" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -152,108 +132,6 @@ export default function AnalyticsPage() {
             <p className="text-muted text-sm py-16 text-center">No requests yet</p>
           )}
         </div>
-      </div>
-
-      {/* Live test console */}
-      <div className="bg-surface border border-border rounded-xl p-5">
-        <p className="text-sm font-medium mb-1">Test console</p>
-        <p className="text-xs text-muted mb-4">Send a real request through the gateway with this app's key.</p>
-
-        <form onSubmit={handleTest} className="space-y-3">
-          <div>
-            <label className="block text-xs text-muted mb-1.5 font-medium">Gateway API key</label>
-            <input
-              required
-              value={gatewayKey}
-              onChange={(e) => setGatewayKey(e.target.value)}
-              className="focus-ring w-full bg-surface2 border border-border rounded-md px-3 py-2 text-sm font-mono outline-none"
-              placeholder="aegis_..."
-            />
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="col-span-1">
-              <label className="block text-xs text-muted mb-1.5 font-medium">Model</label>
-              <select
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-                className="focus-ring w-full bg-surface2 border border-border rounded-md px-3 py-2 text-sm font-mono outline-none appearance-none cursor-pointer"
-              >
-                {SUPPORTED_MODELS.map((group) => (
-                  <optgroup key={group.provider} label={group.provider}>
-                    {group.models.map((m) => (
-                      <option key={m} value={m}>
-                        {m}
-                      </option>
-                    ))}
-                  </optgroup>
-                ))}
-              </select>
-            </div>
-            <div className="col-span-2">
-              <label className="block text-xs text-muted mb-1.5 font-medium">Prompt</label>
-              <input
-                required
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                className="focus-ring w-full bg-surface2 border border-border rounded-md px-3 py-2 text-sm outline-none"
-              />
-            </div>
-          </div>
-          <button
-            type="submit"
-            disabled={testing}
-            className="focus-ring bg-accent text-bg font-semibold text-sm rounded-md px-4 py-2 hover:bg-accentDim transition-colors disabled:opacity-50"
-          >
-            {testing ? 'Sending…' : 'Send request'}
-          </button>
-        </form>
-
-        {testResult && (
-          <div
-            className={`mt-4 rounded-md border px-4 py-3 text-sm ${
-              testResult.ok ? 'border-accent/30 bg-accent/5' : 'border-danger/30 bg-danger/5'
-            }`}
-          >
-            {testResult.ok ? (
-              <>
-                <div className="flex items-center gap-2 mb-2 flex-wrap">
-                  <span
-                    className={`text-xs font-mono px-2 py-0.5 rounded ${
-                      testResult.data.cache_hit ? 'bg-accent/20 text-accent' : 'bg-surface2 text-muted'
-                    }`}
-                  >
-                    {testResult.data.cache_hit ? 'CACHE HIT' : 'LIVE CALL'}
-                  </span>
-                  <span className="text-xs font-mono text-muted">{testResult.data.latency_ms}ms</span>
-                  <span className="text-xs font-mono text-muted">
-                    ${(testResult.data.cost_usd ?? 0).toFixed(6)}
-                  </span>
-                  {testResult.data.similarity_score && (
-                    <span className="text-xs font-mono text-muted">
-                      similarity {testResult.data.similarity_score.toFixed(3)}
-                    </span>
-                  )}
-                </div>
-                <p>{testResult.data.content}</p>
-              </>
-            ) : (
-              <>
-                <p className="font-medium text-danger">
-                  {testResult.data.error || 'Request blocked'}
-                </p>
-                {testResult.data.findings && (
-                  <ul className="mt-2 space-y-1">
-                    {testResult.data.findings.map((f, i) => (
-                      <li key={i} className="font-mono text-xs text-muted">
-                        {f.label}: {f.preview}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </>
-            )}
-          </div>
-        )}
       </div>
     </Shell>
   );

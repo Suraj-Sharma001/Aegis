@@ -57,9 +57,8 @@ export const api = {
     request(`/applications/${appId}/keys`, { method: 'POST', body: JSON.stringify({ label }) }),
   listApiKeys: (appId) => request(`/applications/${appId}/keys`),
   getAnalytics: (appId) => request(`/applications/${appId}/analytics`),
+  listAuditLogs: (appId, limit = 50) => request(`/applications/${appId}/logs?limit=${limit}`),
 
-  // Direct gateway call — needs an x-api-key, not a JWT, so this bypasses
-  // the standard request() helper's auth header.
   testCompletion: async ({ gatewayKey, model, prompt }) => {
     const res = await fetch(`${API_URL}/v1/chat/completions`, {
       method: 'POST',
@@ -71,24 +70,9 @@ export const api = {
   },
 };
 
-// Known models per provider — powers the dropdown in the test console.
-// Keep this in sync with backend/src/services/pricing.service.js when you
-// add/remove models there, so the UI only offers models Aegis actually prices.
 export const SUPPORTED_MODELS = [
-  {
-    provider: 'OpenAI',
-    models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano'],
-  },
-  {
-    provider: 'Claude',
-    models: ['claude-opus-5', 'claude-sonnet-5', 'claude-haiku-4-5-20251001'],
-  },
-  {
-    provider: 'Gemini',
-    models: ['gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.1-pro'],
-  },
-  {
-    provider: 'Ollama (local)',
-    models: ['llama3', 'mistral'],
-  },
+  { provider: 'OpenAI', models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano'] },
+  { provider: 'Claude', models: ['claude-opus-5', 'claude-sonnet-5', 'claude-haiku-4-5-20251001'] },
+  { provider: 'Gemini', models: ['gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.1-pro'] },
+  { provider: 'Ollama (local)', models: ['llama3', 'mistral'] },
 ];

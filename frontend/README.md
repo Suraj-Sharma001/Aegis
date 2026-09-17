@@ -1,68 +1,86 @@
-# Aegis Frontend — Setup
+# LiteLLM-Style UI Overhaul — Full File Map
 
-A Next.js dashboard for your Aegis gateway: login/register, application +
-API key management, and an analytics view with live charts (Recharts) plus
-a built-in test console so you don't need Postman/PowerShell anymore.
+11 files total: 2 backend, 9 frontend. Nothing in `docs/page.js` is
+touched — it stays exactly as the reverted redirect-to-first-article
+version from before.
 
-## Design direction (for your report, if asked)
+## What you're getting
 
-This isn't styled like a typical SaaS marketing page — it's meant to read
-like a security/infrastructure console: dark navy background, a teal
-"verified perimeter" accent (not the default AI-purple or terracotta),
-monospace type for anything numeric (keys, costs, latencies) to signal
-"this is a data readout, not decoration." The shield mark in the top-left
-is built from a hexagonal grid rather than a generic padlock icon, and
-pulses when showing a live/verified state.
+1. Public landing page (`/`) — mirrors litellm.ai/ai-gateway's real
+   structure: sticky nav, bold hero, 3-column feature categorization
+   (Providers / Controls / Operations), an App-to-Gateway-to-Providers
+   diagram, a stats row, and a closing CTA. Every number and feature
+   listed is real — no fabricated testimonials, GitHub stars, or
+   competitor benchmarks like the actual LiteLLM page has.
+2. Categorized sidebar — grouped like LiteLLM's (AI Gateway /
+   Observability / Developer Tools). Deliberately has NO "Access
+   Control" category — Aegis doesn't have real multi-user/team
+   management yet, and a fake category with nothing behind it would be
+   worse than not having one.
+3. Playground (`/playground`) — your test console, promoted to its own
+   page (previously buried inside one app's analytics tab) — matches
+   LiteLLM's separate Playground concept.
+4. Logs (`/logs`) — NEW backend endpoint + page: raw, per-request audit
+   trail across all applications. This data already existed in your
+   AuditLog table; there was just no UI to see individual rows before,
+   only aggregates.
+5. Docs — full treatment: a search box that filters the doc list, and
+   collapsible sections (matches LiteLLM's nested tree, right-sized for
+   our 7 real pages rather than fabricating extra depth), plus an
+   auto-generated right-side "on this page" table of contents per article.
 
-## Setup
+## Backend — 2 files
 
-```bash
-cd frontend
-npm install
-```
+| File | Change |
+|---|---|
+| backend/src/controllers/application.controller.js | OVERWRITE — adds listAuditLogs |
+| backend/src/routes/application.routes.js | OVERWRITE — adds GET /applications/:id/logs |
 
-Set up your environment file:
-```bash
-cp .env.local.example .env.local
-```
-The default (`http://localhost:8080`) already matches your backend — no
-changes needed unless you run the backend on a different port.
+No database migration needed — this reads the existing AuditLog table.
 
-## Run
+## Frontend — 9 files
 
-Make sure your backend, Postgres/Redis, and embedding service are already
-running (same 3 things as before), then in a 4th terminal:
+| File | Change |
+|---|---|
+| frontend/app/page.js | OVERWRITE — new public landing page |
+| frontend/app/lib/api.js | OVERWRITE — adds listAuditLogs (keeps everything else) |
+| frontend/app/components/Shell.js | OVERWRITE — categorized sidebar |
+| frontend/app/components/icons.js | OVERWRITE — adds Playground/Logs/Search/Chevron icons |
+| frontend/app/components/TestConsole.js | NEW — extracted test console |
+| frontend/app/playground/page.js | NEW |
+| frontend/app/logs/page.js | NEW |
+| frontend/app/dashboard/[id]/page.js | OVERWRITE — test console removed (now a link to Playground), charts unchanged |
+| frontend/app/docs/docsContent.js | OVERWRITE — adds DOC_HEADINGS + slugify for the TOC |
+| frontend/app/docs/DocsNav.js | OVERWRITE — adds search + collapsible sections |
+| frontend/app/docs/[slug]/page.js | OVERWRITE — adds right-side TOC column |
 
-```bash
-npm run dev
-```
+NOT touched: frontend/app/docs/page.js, frontend/app/home/page.js,
+frontend/app/dashboard/page.js, frontend/app/keys/page.js,
+frontend/app/usage/page.js — all stay exactly as they were.
 
-Open **http://localhost:3000** in your browser.
+## Test checklist
 
-## What you'll see
+1. Restart backend and frontend.
+2. Log out (or incognito) then visit "/" — new landing page, "Get
+   Started" goes to /login.
+3. Log in — sidebar now shows 3 grouped categories with Playground and
+   Logs as new items.
+4. Click Playground — same test console as before, now standalone.
+5. Click Logs — table of recent requests across all your apps — should
+   include entries from any testing you've already done.
+6. Open any app's Analytics page — test console is gone, replaced by a
+   "Try in Playground" button.
+7. Click Docs — try the search box (type "cache", should filter to just
+   Semantic Caching), click a section header to collapse/expand it, open
+   an article and confirm the right-side "On this page" links jump to the
+   correct heading.
 
-1. **Register** — creates your organization + first admin user (same as
-   the `/auth/register` API call you were doing manually)
-2. **Dashboard** — list of applications, create new ones, issue gateway
-   API keys (shown once, same as before — just in a UI now)
-3. **Analytics page** (click "View analytics" on any app):
-   - 4 stat cards: total requests, cache hit rate, total spend, money
-     saved via caching
-   - A donut chart showing cache hits vs. live calls
-   - A bar chart showing requests by provider
-   - A **test console** — paste in a gateway key, pick a model, type a
-     prompt, hit send. You'll see the response, whether it was a cache
-     hit, latency, cost, and — if governance blocks it — exactly what was
-     flagged. This replaces manually running PowerShell commands.
+## Known, deliberate gaps (say this if asked)
 
-## Notes
-
-- Auth token is stored in `localStorage` — fine for a student project /
-  local dev; a production version would use httpOnly cookies instead.
-  Worth mentioning as a known simplification if asked.
-- The test console calls your gateway directly using whatever API key you
-  paste in — it's not tied to a specific application beyond needing a
-  valid key, same as how the gateway itself works.
-- If you see a blank page or console errors on first run, it's almost
-  always one of the 3 backend services not running — check `docker ps`,
-  check the embedding service terminal, check the backend terminal.
+- No Teams/Organizations/multi-user management UI — the schema has a
+  Role enum (Admin/Developer/Viewer) but no page manages it yet.
+- No live model/provider management UI — models are defined in the
+  pricing table and routed by name prefix, not configured through the UI.
+- Docs search is a simple title filter, not full-text search across
+  article content — a reasonable scope for 7 pages; would need a proper
+  search index for a much larger docs set.
