@@ -3,20 +3,16 @@
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ShieldMark } from './ShieldMark';
-import { IconHome, IconKey, IconChart, IconBook, IconLogout, IconPlay, IconList } from './icons';
+import { IconHome, IconKey, IconChart, IconBook, IconLogout, IconPlay, IconList, IconCloud } from './icons';
 import { clearToken, getUser } from '../lib/api';
 
-// Categorized like LiteLLM's sidebar (AI Gateway / Observability / Developer
-// Tools). Deliberately does NOT include an "Access Control" category —
-// Aegis doesn't have real Teams/multi-user management yet, and a fake
-// category with no working pages behind it would be worse than not having
-// one at all.
 const NAV_GROUPS = [
   {
     label: 'AI Gateway',
     items: [
       { href: '/dashboard', label: 'Applications', icon: IconHome, match: (p) => p === '/dashboard' || p.startsWith('/dashboard/') },
       { href: '/keys', label: 'API Keys', icon: IconKey, match: (p) => p.startsWith('/keys') },
+      { href: '/provider-keys', label: 'Provider Keys', icon: IconCloud, match: (p) => p.startsWith('/provider-keys') },
       { href: '/playground', label: 'Playground', icon: IconPlay, match: (p) => p.startsWith('/playground') },
     ],
   },

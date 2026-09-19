@@ -1,12 +1,9 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { env } from '../../config/env.js';
 
-const genAI = new GoogleGenerativeAI(env.providers.geminiKey);
-
-export async function complete({ model, messages, temperature, max_tokens }) {
+export async function complete({ model, messages, temperature, max_tokens, apiKey }) {
+  const genAI = new GoogleGenerativeAI(apiKey);
   const genModel = genAI.getGenerativeModel({ model });
 
-  // Gemini wants system instructions separate + a plain history/prompt format
   const systemMsg = messages.find((m) => m.role === 'system')?.content;
   const history = messages
     .filter((m) => m.role !== 'system')

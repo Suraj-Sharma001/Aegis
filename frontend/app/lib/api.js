@@ -59,6 +59,11 @@ export const api = {
   getAnalytics: (appId) => request(`/applications/${appId}/analytics`),
   listAuditLogs: (appId, limit = 50) => request(`/applications/${appId}/logs?limit=${limit}`),
 
+  // ── Provider keys (BYOK) — organization-owned LLM credentials ──
+  listProviderKeys: () => request('/provider-keys'),
+  addProviderKey: (payload) => request('/provider-keys', { method: 'POST', body: JSON.stringify(payload) }),
+  deleteProviderKey: (id) => request(`/provider-keys/${id}`, { method: 'DELETE' }),
+
   testCompletion: async ({ gatewayKey, model, prompt }) => {
     const res = await fetch(`${API_URL}/v1/chat/completions`, {
       method: 'POST',
@@ -76,3 +81,5 @@ export const SUPPORTED_MODELS = [
   { provider: 'Gemini', models: ['gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.1-pro'] },
   { provider: 'Ollama (local)', models: ['llama3', 'mistral'] },
 ];
+
+export const PROVIDER_OPTIONS = ['OPENAI', 'GEMINI', 'CLAUDE', 'OLLAMA'];

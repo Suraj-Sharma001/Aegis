@@ -38,7 +38,9 @@ The base layer everything else sits on top of.
 | **Aegis API key** (`aegis_...`) | Proves *your app* is allowed to call the gateway |
 | **Provider key** (Gemini/OpenAI key, in `.env`) | Lets *Aegis itself* call the real AI provider |
 
+
 ----------------------------------------------------------------------------------------------------------------------------------------
+
 
 ## Phase 2 — Smart (Semantic) Caching ✅ Done
 
@@ -66,7 +68,9 @@ separate AI calls — even though the answer is the same.
 That's a ~98% latency drop on cache hits, and proof it understands
 *meaning*, not just exact text.
 
+
 ----------------------------------------------------------------------------------------------------------------------------------------
+
 
 ## Phase 3 — Cost Tracking ✅ Done
 
@@ -158,6 +162,7 @@ Only 2 files this time — simpler patch than last phase.
 
 ----------------------------------------------------------------------------------------------------------------------------------------
 
+
 ##  ✅ Phase 4: Governance / PII Detection
 
 ## What this adds
@@ -241,3 +246,95 @@ false positive. If that happens during your demo, it's not a bug — it's
 the policy correctly erring on the side of caution. Worth having one
 "clean" test prompt ready to show it working normally alongside the
 blocked one, so you can demonstrate both cases confidently.
+
+
+-------------------------------------------------------------------------------------------------------------------------------------------
+
+
+# BYOK — Organization-Owned Provider Keys
+
+This is the real fix: every organization now brings and stores its own
+OpenAI / Gemini / Claude key. Nothing routes through a shared key anymore.
+No database migration needed — the ProviderKey table has existed in your
+schema since Phase 1, it was just never wired up until now.
+
+## Important — this WILL break your current testing until you do one thing
+
+Your .env file's OPENAI_API_KEY / GEMINI_API_KEY / ANTHROPIC_API_KEY are
+no longer read for routing at all, on purpose. After this patch, every
+request will fail with a clear error like:
+
+"No GEMINI API key configured for your organization. Add one from the
+Provider Keys page before using GEMINI models."
+
+This is correct, expected behavior — it's the whole point of the fix. To
+keep testing, go to the new Provider Keys page and paste in the same key
+you already had in .env (or a fresh one). After that, it works exactly as
+before, except now it's tied to your organization specifically.
+
+## File map — 12 files total
+
+### Backend — 7 files
+| File | Change |
+|---|---|
+| backend/src/controllers/providerKey.controller.js | NEW — add/list/delete keys |
+| backend/src/routes/providerKey.routes.js | NEW |
+| backend/src/app.js | OVERWRITE — mounts /provider-keys |
+| backend/src/services/providers/openai.provider.js | OVERWRITE — client built per-request from passed key |
+| backend/src/services/providers/claude.provider.js | OVERWRITE — same |
+| backend/src/services/providers/gemini.provider.js | OVERWRITE — same |
+| backend/src/services/providers/index.js | OVERWRITE — resolves + decrypts the calling org's key, throws a clear error if none exists, NO fallback |
+| backend/src/controllers/gateway.controller.js | OVERWRITE — passes organizationId into routeCompletion |
+
+(ollama.provider.js needs no change — local models don't need a key.)
+
+### Frontend — 4 files
+| File | Change |
+|---|---|
+| frontend/app/lib/api.js | OVERWRITE — adds listProviderKeys / addProviderKey / deleteProviderKey |
+| frontend/app/provider-keys/page.js | NEW — the management page |
+| frontend/app/components/icons.js | OVERWRITE — adds a cloud icon |
+| frontend/app/components/Shell.js | OVERWRITE — adds "Provider Keys" to the AI Gateway sidebar group |
+
+## How it actually works
+
+1. POST /provider-keys with { provider, label, apiKey } — the raw key is
+   encrypted (AES-256-GCM, same helper that's existed since Phase 1) and
+   stored against your organization. Any previous active key for that
+   same provider is marked inactive first (kept for audit history, not
+   deleted) — so there's always exactly one active key per provider per org.
+2. The raw key is NEVER returned by any endpoint after creation — the
+   list view only shows provider, label, active status, and date added.
+3. When a gateway request comes in, routeCompletion looks up the calling
+   organization's active key for whichever provider the model resolves
+   to, decrypts it in memory just for that call, and passes it straight
+   into the provider SDK. It's never logged, never cached, never written
+   anywhere in decrypted form.
+4. If no key is configured for that provider, the request fails
+   immediately with a clear, actionable 400 error — not a silent
+   fallback to anything shared.
+
+## Test
+
+1. Restart backend (npm run dev) and frontend.
+2. Log in, click Provider Keys (under AI Gateway in the sidebar).
+3. Add your Gemini key — provider GEMINI, paste the actual key.
+4. Go to Playground, send a request with gemini-3.5-flash-lite — should
+   work exactly as before.
+5. Go back to Provider Keys, click Remove on that Gemini key.
+6. Send the same request again — should now fail with the "No GEMINI API
+   key configured..." error. This proves there's no hidden fallback.
+7. Re-add the key — should work again.
+
+## For your report / demo
+
+This is a genuinely good thing to walk an examiner through: "originally
+all organizations shared one API key from .env — I identified this was
+wrong for a system calling itself an enterprise gateway, since it meant
+every customer's usage billed to my personal account. I fixed it by
+wiring up the ProviderKey model and encryption helpers that already
+existed in the schema but weren't connected to anything, removed the
+shared fallback entirely, and confirmed with a real test that removing an
+org's key correctly blocks requests rather than silently falling back."
+That's a real architecture decision with a clear before/after, not just a
+feature addition.

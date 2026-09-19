@@ -1,10 +1,8 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { env } from '../../config/env.js';
 
-const client = new Anthropic({ apiKey: env.providers.anthropicKey });
+export async function complete({ model, messages, temperature, max_tokens, apiKey }) {
+  const client = new Anthropic({ apiKey });
 
-export async function complete({ model, messages, temperature, max_tokens }) {
-  // Anthropic separates the system message from the conversation array
   const systemMsg = messages.find((m) => m.role === 'system')?.content;
   const conversation = messages.filter((m) => m.role !== 'system');
 
@@ -13,7 +11,7 @@ export async function complete({ model, messages, temperature, max_tokens }) {
     system: systemMsg,
     messages: conversation,
     temperature,
-    max_tokens: max_tokens || 1024, // Anthropic requires max_tokens
+    max_tokens: max_tokens || 1024,
   });
 
   return {

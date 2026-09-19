@@ -5,18 +5,12 @@ import { checkCache, storeInCache } from '../services/semanticCache.service.js';
 import { calculateCost } from '../services/pricing.service.js';
 import { scanMessages, maskFindings } from '../services/governance.service.js';
 
-// POST /v1/chat/completions
-// This is Aegis's "unified API" — one endpoint, any provider, based on `model`.
-// Phase 4: added a governance/PII scan as the FIRST check — runs before
-// caching and before the provider call, so sensitive data never leaves
-// the gateway at all. Default policy is BLOCK (safer than trying to mask
-// and forward — partial masking can still leak context).
 export async function chatCompletion(req, res, next) {
   const startTime = Date.now();
   try {
     const data = validate(chatCompletionSchema, req.body);
 
-    // ── 0. Governance / PII scan — runs before anything else ────────
+    // ── 0. Governance / PII scan ─────────────────────────────────────
     const findings = scanMessages(data.messages);
     if (findings.length > 0) {
       await prisma.auditLog.create({
@@ -39,12 +33,10 @@ export async function chatCompletion(req, res, next) {
       });
     }
 
-    // ── 1. Check semantic cache first ──────────────────────────────
+    // ── 1. Semantic cache check ──────────────────────────────────────
     const cached = await checkCache({ model: data.model, messages: data.messages });
 
     if (cached) {
-      // Cache hits cost nothing — but we still calculate what it WOULD have
-      // cost, so you can report "$X saved via caching" as a real number.
       const wouldHaveCost = calculateCost(
         inferProvider(data.model),
         data.model,
@@ -62,7 +54,7 @@ export async function chatCompletion(req, res, next) {
           completionTokens: cached.completionTokens,
           totalTokens: cached.totalTokens,
           latencyMs: Date.now() - startTime,
-          costUsd: 0, // actual cost is always 0 on a cache hit
+          costUsd: 0,
           cacheHit: true,
         },
       });
@@ -84,8 +76,8 @@ export async function chatCompletion(req, res, next) {
       });
     }
 
-    // ── 2. Cache miss — call the real provider ─────────────────────
-    const result = await routeCompletion(data);
+    // ── 2. Cache miss — call the real provider using the ORG's own key ─
+    const result = await routeCompletion({ ...data, organizationId: req.organizationId });
 
     const costUsd = calculateCost(result.provider, data.model, result.promptTokens, result.completionTokens);
 
@@ -104,8 +96,6 @@ export async function chatCompletion(req, res, next) {
       },
     });
 
-    // ── 3. Store this fresh response for future cache hits ─────────
-    // Fire-and-forget — don't make the client wait on this.
     storeInCache({ model: data.model, messages: data.messages, response: result }).catch(() => {});
 
     res.json({
@@ -122,21 +112,19 @@ export async function chatCompletion(req, res, next) {
       cost_usd: costUsd,
     });
   } catch (err) {
-    // Log failures too — this is what makes the audit trail actually useful
-    // for debugging provider outages / failover decisions later.
     if (req.application) {
       await prisma.auditLog
         .create({
           data: {
             applicationId: req.application.id,
-            provider: err.provider || 'OPENAI',
+            provider: err.provider || inferProvider(req.body?.model || ''),
             model: req.body?.model || 'unknown',
             status: 'ERROR',
             latencyMs: err.latencyMs || 0,
             errorMessage: err.message,
           },
         })
-        .catch(() => {}); // never let logging failure mask the real error
+        .catch(() => {});
     }
     next(err);
   }
