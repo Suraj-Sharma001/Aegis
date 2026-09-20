@@ -52,17 +52,24 @@ export const api = {
   me: () => request('/auth/me'),
 
   listApplications: () => request('/applications'),
-  createApplication: (name) => request('/applications', { method: 'POST', body: JSON.stringify({ name }) }),
+  createApplication: (name, teamId) =>
+    request('/applications', { method: 'POST', body: JSON.stringify({ name, teamId }) }),
   createApiKey: (appId, label) =>
     request(`/applications/${appId}/keys`, { method: 'POST', body: JSON.stringify({ label }) }),
   listApiKeys: (appId) => request(`/applications/${appId}/keys`),
   getAnalytics: (appId) => request(`/applications/${appId}/analytics`),
   listAuditLogs: (appId, limit = 50) => request(`/applications/${appId}/logs?limit=${limit}`),
 
-  // ── Provider keys (BYOK) — organization-owned LLM credentials ──
   listProviderKeys: () => request('/provider-keys'),
   addProviderKey: (payload) => request('/provider-keys', { method: 'POST', body: JSON.stringify(payload) }),
   deleteProviderKey: (id) => request(`/provider-keys/${id}`, { method: 'DELETE' }),
+
+  listTeams: () => request('/teams'),
+  createTeam: (name) => request('/teams', { method: 'POST', body: JSON.stringify({ name }) }),
+  listTeamMembers: (teamId) => request(`/teams/${teamId}/members`),
+  addTeamMember: (teamId, payload) =>
+    request(`/teams/${teamId}/members`, { method: 'POST', body: JSON.stringify(payload) }),
+  removeTeamMember: (teamId, userId) => request(`/teams/${teamId}/members/${userId}`, { method: 'DELETE' }),
 
   testCompletion: async ({ gatewayKey, model, prompt }) => {
     const res = await fetch(`${API_URL}/v1/chat/completions`, {

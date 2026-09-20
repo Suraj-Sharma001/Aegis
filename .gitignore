@@ -50,5 +50,6 @@ desktop.ini
 *.zip
 .cache/
 
-# ── Md file ────────────────────────────────────────────
+# ── Project memory / internal docs ────────────────────
 Progress.md
+Memory.md

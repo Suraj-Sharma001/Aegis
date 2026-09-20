@@ -3,38 +3,54 @@
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ShieldMark } from './ShieldMark';
-import { IconHome, IconKey, IconChart, IconBook, IconLogout, IconPlay, IconList, IconCloud } from './icons';
+import { IconHome, IconKey, IconChart, IconBook, IconLogout, IconPlay, IconList, IconCloud, IconUsers } from './icons';
 import { clearToken, getUser } from '../lib/api';
 
-const NAV_GROUPS = [
-  {
-    label: 'AI Gateway',
-    items: [
-      { href: '/dashboard', label: 'Applications', icon: IconHome, match: (p) => p === '/dashboard' || p.startsWith('/dashboard/') },
-      { href: '/keys', label: 'API Keys', icon: IconKey, match: (p) => p.startsWith('/keys') },
-      { href: '/provider-keys', label: 'Provider Keys', icon: IconCloud, match: (p) => p.startsWith('/provider-keys') },
-      { href: '/playground', label: 'Playground', icon: IconPlay, match: (p) => p.startsWith('/playground') },
-    ],
-  },
-  {
-    label: 'Observability',
-    items: [
-      { href: '/usage', label: 'Usage', icon: IconChart, match: (p) => p.startsWith('/usage') },
-      { href: '/logs', label: 'Logs', icon: IconList, match: (p) => p.startsWith('/logs') },
-    ],
-  },
-  {
-    label: 'Developer Tools',
-    items: [
-      { href: '/docs', label: 'Docs', icon: IconBook, match: (p) => p.startsWith('/docs') },
-    ],
-  },
-];
+function buildNavGroups(user) {
+  const groups = [
+    {
+      label: 'AI Gateway',
+      items: [
+        { href: '/dashboard', label: 'Applications', icon: IconHome, match: (p) => p === '/dashboard' || p.startsWith('/dashboard/') },
+        { href: '/keys', label: 'API Keys', icon: IconKey, match: (p) => p.startsWith('/keys') },
+        { href: '/provider-keys', label: 'Provider Keys', icon: IconCloud, match: (p) => p.startsWith('/provider-keys') },
+        { href: '/playground', label: 'Playground', icon: IconPlay, match: (p) => p.startsWith('/playground') },
+      ],
+    },
+    {
+      label: 'Observability',
+      items: [
+        { href: '/usage', label: 'Usage', icon: IconChart, match: (p) => p.startsWith('/usage') },
+        { href: '/logs', label: 'Logs', icon: IconList, match: (p) => p.startsWith('/logs') },
+      ],
+    },
+    {
+      label: 'Developer Tools',
+      items: [
+        { href: '/docs', label: 'Docs', icon: IconBook, match: (p) => p.startsWith('/docs') },
+      ],
+    },
+  ];
+
+  // Access Control is now real (Teams exist) — but only Admins manage it,
+  // so it's only shown to Admins rather than shown-but-broken for everyone.
+  if (user?.role === 'ADMIN') {
+    groups.push({
+      label: 'Access Control',
+      items: [
+        { href: '/teams', label: 'Teams', icon: IconUsers, match: (p) => p.startsWith('/teams') },
+      ],
+    });
+  }
+
+  return groups;
+}
 
 export function Shell({ children }) {
   const router = useRouter();
   const pathname = usePathname();
   const user = getUser();
+  const navGroups = buildNavGroups(user);
 
   function handleLogout() {
     clearToken();
@@ -53,7 +69,7 @@ export function Shell({ children }) {
         </Link>
 
         <nav className="flex-1 px-3 py-4 space-y-5 overflow-y-auto">
-          {NAV_GROUPS.map((group) => (
+          {navGroups.map((group) => (
             <div key={group.label}>
               <p className="px-3 text-[10px] font-semibold text-muted uppercase tracking-wider mb-1.5">
                 {group.label}
@@ -85,7 +101,7 @@ export function Shell({ children }) {
         <div className="px-3 py-4 border-t border-border">
           {user && (
             <p className="px-3 text-xs text-muted font-mono mb-2 truncate" title={user.email}>
-              {user.email}
+              {user.email} {user.role === 'ADMIN' && <span className="text-accent">· admin</span>}
             </p>
           )}
           <button

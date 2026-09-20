@@ -1,6 +1,5 @@
-// Aegis Gateway - Core Data Model (Phase 1: Foundation)
-// This covers auth, multi-tenancy (org/app), provider key storage, and audit logging.
-// Governance policies, cache stats tables, and analytics rollups get added in Phase 2.
+// Aegis Gateway - Core Data Model
+// Phase: added Team-based access control within an organization.
 
 generator client {
   provider = "prisma-client-js"
@@ -11,19 +10,17 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ── Enums ─────────────────────────────────────────────
-
 enum Role {
-  ADMIN // full access: manage users, keys, policies, billing
-  DEVELOPER // can create apps, view own analytics, call gateway
-  VIEWER // read-only dashboard access
+  ADMIN
+  DEVELOPER
+  VIEWER
 }
 
 enum RequestStatus {
   SUCCESS
   ERROR
   CACHED
-  BLOCKED // blocked by governance/policy layer
+  BLOCKED
   RATE_LIMITED
 }
 
@@ -34,8 +31,6 @@ enum Provider {
   OLLAMA
 }
 
-// ── Core Models ───────────────────────────────────────
-
 model Organization {
   id        String   @id @default(uuid())
   name      String
@@ -45,6 +40,7 @@ model Organization {
   users        User[]
   applications Application[]
   providerKeys ProviderKey[]
+  teams        Team[]
 }
 
 model User {
@@ -58,26 +54,57 @@ model User {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  apiKeys    ApiKey[]
-  auditLogs  AuditLog[]
+  apiKeys         ApiKey[]
+  auditLogs       AuditLog[]
+  teamMemberships TeamMember[]
 }
 
-// Applications = the client apps calling Aegis (each gets its own gateway API key)
-model Application {
+// A Team scopes visibility WITHIN an organization. Admins bypass team
+// filtering entirely and see every application in their org; Developers
+// and Viewers only see applications belonging to a team they're on.
+model Team {
   id             String   @id @default(uuid())
   name           String
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
   createdAt      DateTime @default(now())
 
+  members      TeamMember[]
+  applications Application[]
+}
+
+// Many-to-many join: a user can belong to more than one team.
+model TeamMember {
+  id       String   @id @default(uuid())
+  userId   String
+  user     User     @relation(fields: [userId], references: [id])
+  teamId   String
+  team     Team     @relation(fields: [teamId], references: [id])
+  joinedAt DateTime @default(now())
+
+  @@unique([userId, teamId])
+}
+
+model Application {
+  id             String   @id @default(uuid())
+  name           String
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  // Nullable at the DB level on purpose — keeps the migration a single
+  // additive step. New applications are always required to set this at
+  // the application layer (see application.controller.js); existing rows
+  // get backfilled to a "Default Team" via scripts/backfill-teams.js.
+  teamId         String?
+  team           Team?    @relation(fields: [teamId], references: [id])
+  createdAt      DateTime @default(now())
+
   apiKeys   ApiKey[]
   auditLogs AuditLog[]
 }
 
-// Gateway API keys — what client apps use to call Aegis (NOT the provider keys)
 model ApiKey {
   id            String   @id @default(uuid())
-  key           String   @unique // hashed before storage
+  key           String   @unique
   label         String
   applicationId String
   application   Application @relation(fields: [applicationId], references: [id])
@@ -88,7 +115,6 @@ model ApiKey {
   createdAt     DateTime @default(now())
 }
 
-// Provider credentials — stored centrally, encrypted at rest (see lib/crypto.js)
 model ProviderKey {
   id             String   @id @default(uuid())
   provider       Provider
@@ -100,7 +126,6 @@ model ProviderKey {
   createdAt      DateTime @default(now())
 }
 
-// Every request through the gateway gets logged here — this powers audit + analytics
 model AuditLog {
   id            String        @id @default(uuid())
   applicationId String

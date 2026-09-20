@@ -1,17 +1,12 @@
 import { prisma } from '../config/prisma.js';
+import { assertCanAccessApplication } from '../lib/authz.js';
 
 // GET /applications/:id/analytics
-// Summarizes spend and cache performance for one application — this is
-// what turns your audit log from "just rows in a table" into the kind of
-// numbers you'd put in a report or a dashboard chart.
 export async function getAnalytics(req, res, next) {
   try {
     const { id: applicationId } = req.params;
 
-    const application = await prisma.application.findFirst({
-      where: { id: applicationId, organizationId: req.user.organizationId },
-    });
-    if (!application) return res.status(404).json({ error: 'Application not found' });
+    await assertCanAccessApplication(req.user, applicationId);
 
     const logs = await prisma.auditLog.findMany({ where: { applicationId } });
 
@@ -22,11 +17,6 @@ export async function getAnalytics(req, res, next) {
     const totalCostUsd = logs.reduce((sum, l) => sum + l.costUsd, 0);
     const totalTokens = logs.reduce((sum, l) => sum + l.totalTokens, 0);
 
-    // "Money saved by caching" = what cache hits WOULD have cost, based on
-    // the tokens they returned. We don't store this per-row (cache hits
-    // always log costUsd: 0), so this is an approximation using the average
-    // cost-per-token of your non-cached calls — good enough for a report
-    // chart, not meant to be penny-accurate.
     const successLogs = logs.filter((l) => l.status === 'SUCCESS' && l.totalTokens > 0);
     const avgCostPerToken =
       successLogs.length > 0

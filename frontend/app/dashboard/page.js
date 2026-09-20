@@ -39,14 +39,16 @@ function KeyList({ appId }) {
 export default function DashboardPage() {
   const router = useRouter();
   const [apps, setApps] = useState(null);
+  const [teams, setTeams] = useState([]);
   const [error, setError] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [newAppName, setNewAppName] = useState('');
+  const [newAppTeamId, setNewAppTeamId] = useState('');
   const [creating, setCreating] = useState(false);
-  const [revealedKey, setRevealedKey] = useState(null); // { appId, key }
+  const [revealedKey, setRevealedKey] = useState(null);
   const [issuingFor, setIssuingFor] = useState(null);
-  const [expandedApp, setExpandedApp] = useState(null); // which app's key list is open
-  const [keyListVersion, setKeyListVersion] = useState(0); // bump to force KeyList refetch
+  const [expandedApp, setExpandedApp] = useState(null);
+  const [keyListVersion, setKeyListVersion] = useState(0);
 
   useEffect(() => {
     if (!getToken()) {
@@ -54,23 +56,41 @@ export default function DashboardPage() {
       return;
     }
     loadApps();
+    loadTeams();
   }, []);
 
   async function loadApps() {
     try {
-      const data = await api.listApplications();
-      setApps(data);
+      setApps(await api.listApplications());
     } catch (err) {
       setError(err.data?.error || err.message);
     }
   }
 
+  async function loadTeams() {
+    try {
+      const t = await api.listTeams();
+      setTeams(t);
+      // Deliberately NOT auto-selecting teams[0] here — silently defaulting
+      // to a team (which is always "Default Team", since it's the oldest)
+      // makes it easy to create an application in the wrong team without
+      // noticing. The dropdown starts empty and forces a real choice.
+    } catch (err) {
+      // Non-fatal — if teams fail to load, the create form just won't have options.
+    }
+  }
+
   async function handleCreateApp(e) {
     e.preventDefault();
+    if (!newAppTeamId) {
+      setError('Please select a team before creating the application.');
+      return;
+    }
     setCreating(true);
     try {
-      await api.createApplication(newAppName);
+      await api.createApplication(newAppName, newAppTeamId);
       setNewAppName('');
+      setNewAppTeamId(''); // reset so the NEXT app also forces a deliberate choice
       setShowCreate(false);
       await loadApps();
     } catch (err) {
@@ -86,8 +106,8 @@ export default function DashboardPage() {
       const data = await api.createApiKey(appId, `Key issued ${new Date().toLocaleString()}`);
       setRevealedKey({ appId, key: data.apiKey });
       setExpandedApp(appId);
-      setKeyListVersion((v) => v + 1); // force the key list to refetch and show the new one
-      await loadApps(); // refresh key counts
+      setKeyListVersion((v) => v + 1);
+      await loadApps();
     } catch (err) {
       setError(err.data?.error || err.message);
     } finally {
@@ -100,11 +120,13 @@ export default function DashboardPage() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="font-display font-semibold text-2xl">Applications</h1>
-          <p className="text-muted text-sm mt-1">Each application gets its own gateway keys and usage trail.</p>
+          <p className="text-muted text-sm mt-1">You're seeing applications for your team(s) only — Admins see all.</p>
         </div>
         <button
           onClick={() => setShowCreate((s) => !s)}
-          className="focus-ring bg-accent text-bg font-semibold text-sm rounded-md px-4 py-2 hover:bg-accentDim transition-colors"
+          disabled={teams.length === 0}
+          className="focus-ring bg-accent text-bg font-semibold text-sm rounded-md px-4 py-2 hover:bg-accentDim transition-colors disabled:opacity-40"
+          title={teams.length === 0 ? 'You need to be on a team before creating an application' : ''}
         >
           + New application
         </button>
@@ -116,11 +138,14 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {teams.length === 0 && apps?.length === 0 && (
+        <div className="text-sm text-warn bg-warn/10 border border-warn/30 rounded-md px-3 py-2 mb-6">
+          You're not on any team yet — ask an Admin to add you to one from the Teams page before creating applications.
+        </div>
+      )}
+
       {showCreate && (
-        <form
-          onSubmit={handleCreateApp}
-          className="bg-surface border border-border rounded-xl p-5 mb-6 flex items-end gap-3"
-        >
+        <form onSubmit={handleCreateApp} className="bg-surface border border-border rounded-xl p-5 mb-6 flex items-end gap-3">
           <div className="flex-1">
             <label className="block text-xs text-muted mb-1.5 font-medium">Application name</label>
             <input
@@ -131,6 +156,20 @@ export default function DashboardPage() {
               className="focus-ring w-full bg-surface2 border border-border rounded-md px-3 py-2 text-sm outline-none"
               placeholder="e.g. Support Chatbot"
             />
+          </div>
+          <div className="w-48">
+            <label className="block text-xs text-muted mb-1.5 font-medium">Team</label>
+            <select
+              required
+              value={newAppTeamId}
+              onChange={(e) => setNewAppTeamId(e.target.value)}
+              className="focus-ring w-full bg-surface2 border border-border rounded-md px-3 py-2 text-sm outline-none cursor-pointer"
+            >
+              <option value="" disabled>Select a team…</option>
+              {teams.map((t) => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
           </div>
           <button
             type="submit"
@@ -152,10 +191,7 @@ export default function DashboardPage() {
           <code className="block bg-bg border border-border rounded-md px-3 py-2 text-sm font-mono text-ink break-all">
             {revealedKey.key}
           </code>
-          <button
-            onClick={() => setRevealedKey(null)}
-            className="focus-ring text-xs text-muted hover:text-ink mt-3"
-          >
+          <button onClick={() => setRevealedKey(null)} className="focus-ring text-xs text-muted hover:text-ink mt-3">
             Dismiss
           </button>
         </div>
@@ -165,20 +201,24 @@ export default function DashboardPage() {
         <div className="text-muted text-sm font-mono">loading…</div>
       ) : apps.length === 0 ? (
         <div className="bg-surface border border-border rounded-xl p-10 text-center">
-          <p className="text-muted text-sm">No applications yet. Create one to get a gateway API key.</p>
+          <p className="text-muted text-sm">No applications visible to you yet.</p>
         </div>
       ) : (
         <div className="grid gap-3">
           {apps.map((app) => (
-            <div
-              key={app.id}
-              className="bg-surface border border-border rounded-xl p-5 hover:border-accent/30 transition-colors"
-            >
+            <div key={app.id} className="bg-surface border border-border rounded-xl p-5 hover:border-accent/30 transition-colors">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-medium">{app.name}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium">{app.name}</p>
+                    {app.team && (
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface2 text-muted border border-border">
+                        {app.team.name}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-muted font-mono mt-1">
-                    {app._count?.auditLogs ?? 0} requests · {app._count?.apiKeys ?? 0} key(s) issued
+                    {app._count?.auditLogs ?? 0} requests · {app._count?.apiKeys ?? 0} key(s)
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
