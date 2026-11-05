@@ -25,21 +25,24 @@ symmetrically.
 Run: uvicorn app:app --port 8001
 """
 
+import os
 from fastapi import FastAPI
 from pydantic import BaseModel
 from sentence_transformers import SentenceTransformer
 
 app = FastAPI(title="Aegis Embedding Service")
 
-# Loaded once at startup — kept in memory, each request just runs inference.
-# First run after this change downloads this model's weights (~440MB —
-# bigger than the previous MiniLM-family models, expect a longer first start).
-model = SentenceTransformer("BAAI/bge-base-en-v1.5")
+# Configurable model for different deployment environments.
+# Default: BAAI/bge-base-en-v1.5 (~420MB, best quality)
+# For free tier (512MB RAM limit): all-MiniLM-L6-v2 (~80MB, 95% quality)
+MODEL_NAME = os.getenv("MODEL_NAME", "BAAI/bge-base-en-v1.5")
+model = SentenceTransformer(MODEL_NAME)
 
 # BGE's documented recommendation: prefix short queries with this instruction
 # for retrieval-style tasks. Improves matching quality measurably per the
 # model's own published evaluation.
-QUERY_PREFIX = "Represent this sentence for searching relevant passages: "
+# Note: Only BGE models need this prefix; MiniLM models work without it.
+QUERY_PREFIX = "Represent this sentence for searching relevant passages: " if "bge" in MODEL_NAME.lower() else ""
 
 
 class EmbedRequest(BaseModel):
@@ -52,7 +55,7 @@ class EmbedResponse(BaseModel):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "model": "BAAI/bge-base-en-v1.5"}
+    return {"status": "ok", "model": MODEL_NAME}
 
 
 @app.post("/embed", response_model=EmbedResponse)
