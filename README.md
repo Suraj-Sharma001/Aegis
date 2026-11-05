@@ -1,4 +1,4 @@
-# Aegis — Phase 1: Foundation
+# Aegis 
 
 This is the foundation layer: gateway skeleton, auth (dashboard JWT + gateway
 API keys), multi-provider routing (OpenAI/Claude/Gemini/Ollama), and audit
@@ -25,7 +25,7 @@ aegis/
 │   │   └── server.js          # Entry point
 │   ├── package.json
 │   └── .env.example
-└── frontend/                  # (empty for now — Phase 2: Next.js dashboard)
+└── frontend/                
 ```
 
 ## Setup — step by step
