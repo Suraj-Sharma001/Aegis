@@ -1,27 +1,18 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { Shell } from '../../components/Shell';
-import { getToken } from '../../lib/api';
+import { useParams } from 'next/navigation';
+import { PublicShell } from '../../components/PublicShell';
 import { DOC_SECTIONS, DocBody, DOC_HEADINGS, slugify } from '../docsContent';
 import { DocsNav } from '../DocsNav';
 
 export default function DocPage() {
   const { slug } = useParams();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!getToken()) {
-      router.replace('/login');
-    }
-  }, [router]);
 
   const activeTitle = DOC_SECTIONS.flatMap((s) => s.items).find((i) => i.slug === slug)?.title || 'Documentation';
   const headings = DOC_HEADINGS[slug] || [];
 
   return (
-    <Shell>
+    <PublicShell>
       <div className="flex gap-10">
         <DocsNav activeSlug={slug} />
 
@@ -51,6 +42,6 @@ export default function DocPage() {
           </aside>
         )}
       </div>
-    </Shell>
+    </PublicShell>
   );
 }

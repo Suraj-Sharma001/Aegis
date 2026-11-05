@@ -86,7 +86,8 @@ export const SUPPORTED_MODELS = [
   { provider: 'OpenAI', models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano'] },
   { provider: 'Claude', models: ['claude-opus-5', 'claude-sonnet-5', 'claude-haiku-4-5-20251001'] },
   { provider: 'Gemini', models: ['gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.1-pro'] },
+  { provider: 'Grok', models: ['grok-beta', 'grok-2'] },
   { provider: 'Ollama (local)', models: ['llama3', 'mistral'] },
 ];
 
-export const PROVIDER_OPTIONS = ['OPENAI', 'GEMINI', 'CLAUDE', 'OLLAMA'];
+export const PROVIDER_OPTIONS = ['OPENAI', 'GEMINI', 'CLAUDE', 'GROK', 'OLLAMA'];

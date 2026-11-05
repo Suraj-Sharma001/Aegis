@@ -4,12 +4,14 @@ import * as openaiProvider from './openai.provider.js';
 import * as claudeProvider from './claude.provider.js';
 import * as geminiProvider from './gemini.provider.js';
 import * as ollamaProvider from './ollama.provider.js';
+import * as grokProvider from './grok.provider.js';
 
 const adapters = {
   OPENAI: openaiProvider,
   CLAUDE: claudeProvider,
   GEMINI: geminiProvider,
   OLLAMA: ollamaProvider,
+  GROK: grokProvider,
 };
 
 export function inferProvider(model) {
@@ -17,6 +19,7 @@ export function inferProvider(model) {
   if (m.startsWith('gpt') || m.startsWith('o1') || m.startsWith('o3')) return 'OPENAI';
   if (m.startsWith('claude')) return 'CLAUDE';
   if (m.startsWith('gemini')) return 'GEMINI';
+  if (m.startsWith('grok')) return 'GROK';
   return 'OLLAMA';
 }
 

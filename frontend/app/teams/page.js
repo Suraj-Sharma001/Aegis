@@ -42,7 +42,15 @@ function MemberList({ teamId, refreshKey }) {
               <TableCell className="font-medium">{m.name}</TableCell>
               <TableCell className="text-muted-foreground">{m.email}</TableCell>
               <TableCell>
-                <Badge variant="secondary" className="text-xs">{m.role}</Badge>
+                {m.role === 'ADMIN' && (
+                  <Badge variant="default" className="text-xs">Admin</Badge>
+                )}
+                {m.role === 'DEVELOPER' && (
+                  <Badge variant="secondary" className="text-xs">Developer</Badge>
+                )}
+                {m.role === 'VIEWER' && (
+                  <Badge variant="outline" className="text-xs">Viewer</Badge>
+                )}
               </TableCell>
             </TableRow>
           ))}

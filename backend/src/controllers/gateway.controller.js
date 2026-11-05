@@ -3,7 +3,7 @@ import { routeCompletion, inferProvider } from '../services/providers/index.js';
 import { chatCompletionSchema, validate } from '../utils/validators.js';
 import { checkCache, storeInCache } from '../services/semanticCache.service.js';
 import { calculateCost } from '../services/pricing.service.js';
-import { scanMessages, maskFindings } from '../services/governance.service.js';
+import { scanMessages, maskFindings, DEFAULT_GOVERNANCE_CONFIG } from '../services/governance.service.js';
 
 export async function chatCompletion(req, res, next) {
   const startTime = Date.now();
@@ -11,8 +11,10 @@ export async function chatCompletion(req, res, next) {
     const data = validate(chatCompletionSchema, req.body);
 
     // ── 0. Governance / PII scan ─────────────────────────────────────
-    const findings = scanMessages(data.messages);
-    if (findings.length > 0) {
+    const governanceConfig = DEFAULT_GOVERNANCE_CONFIG; // TODO: Per-app config from DB
+    const findings = scanMessages(data.messages, governanceConfig);
+
+    if (governanceConfig.enabled && governanceConfig.mode === 'BLOCK' && findings.length > 0) {
       await prisma.auditLog.create({
         data: {
           applicationId: req.application.id,

@@ -147,6 +147,12 @@ export function Shell({ children }) {
                   {user.role === 'ADMIN' && (
                     <Badge variant="default" className="text-[10px] py-0 h-4 px-1.5">Admin</Badge>
                   )}
+                  {user.role === 'DEVELOPER' && (
+                    <Badge variant="secondary" className="text-[10px] py-0 h-4 px-1.5">Developer</Badge>
+                  )}
+                  {user.role === 'VIEWER' && (
+                    <Badge variant="outline" className="text-[10px] py-0 h-4 px-1.5">Viewer</Badge>
+                  )}
                 </div>
               </div>
             )}
