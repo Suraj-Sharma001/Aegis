@@ -63,3 +63,9 @@ def embed(req: EmbedRequest):
     prefixed = QUERY_PREFIX + req.text
     vector = model.encode(prefixed, normalize_embeddings=True)
     return {"embedding": vector.tolist()}
+
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.getenv("PORT", 8001))
+    uvicorn.run(app, host="0.0.0.0", port=port)
