@@ -47,29 +47,29 @@ export function slugify(text) {
 // ── Shared building blocks ──
 export function H2({ children }) {
   return (
-    <h2 id={slugify(children)} className="font-display font-semibold text-lg text-ink mt-8 mb-3 first:mt-0 scroll-mt-24">
+    <h2 id={slugify(children)} className="font-display font-semibold text-lg mt-8 mb-3 first:mt-0 scroll-mt-24">
       {children}
     </h2>
   );
 }
 export function P({ children }) {
-  return <p className="text-sm text-muted leading-relaxed mb-4">{children}</p>;
+  return <p className="text-sm text-muted-foreground leading-relaxed mb-4">{children}</p>;
 }
 export function Code({ children }) {
   return (
-    <pre className="bg-surface2 border border-border rounded-md p-4 text-xs font-mono text-ink overflow-x-auto mb-4 whitespace-pre-wrap">
+    <pre className="bg-muted border border-border rounded-md p-4 text-xs font-mono overflow-x-auto mb-4 whitespace-pre-wrap">
       {children}
     </pre>
   );
 }
 export function InlineCode({ children }) {
-  return <code className="bg-surface2 border border-border rounded px-1.5 py-0.5 text-xs font-mono text-accent">{children}</code>;
+  return <code className="bg-muted border border-border rounded px-1.5 py-0.5 text-xs font-mono text-primary">{children}</code>;
 }
 export function Ul({ children }) {
-  return <ul className="list-disc list-outside ml-5 space-y-1.5 text-sm text-muted mb-4">{children}</ul>;
+  return <ul className="list-disc list-outside ml-5 space-y-1.5 text-sm text-muted-foreground mb-4">{children}</ul>;
 }
 export function Note({ children }) {
-  return <div className="bg-accent/5 border border-accent/25 rounded-md px-4 py-3 text-sm text-ink mb-4">{children}</div>;
+  return <div className="bg-primary/5 border border-primary/25 rounded-md px-4 py-3 text-sm mb-4">{children}</div>;
 }
 
 // ── Page bodies ──

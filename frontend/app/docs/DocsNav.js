@@ -31,12 +31,12 @@ export function DocsNav({ activeSlug }) {
     <nav className="w-48 shrink-0 hidden md:block">
       <div className="sticky top-10 space-y-4">
         <div className="relative">
-          <IconSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" />
+          <IconSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search docs…"
-            className="focus-ring w-full bg-surface2 border border-border rounded-md pl-8 pr-2.5 py-1.5 text-xs outline-none"
+            className="w-full bg-muted border border-border rounded-md pl-8 pr-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
 
@@ -47,12 +47,12 @@ export function DocsNav({ activeSlug }) {
               <div key={section.section}>
                 <button
                   onClick={() => toggleSection(section.section)}
-                  className="focus-ring w-full flex items-center justify-between px-0 py-0.5 mb-1.5 text-left"
+                  className="w-full flex items-center justify-between px-0 py-0.5 mb-1.5 text-left focus:outline-none"
                 >
-                  <span className="text-xs font-semibold text-muted uppercase tracking-wide">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                     {section.section}
                   </span>
-                  <IconChevronDown className={`text-muted transition-transform ${isCollapsed ? '-rotate-90' : ''}`} />
+                  <IconChevronDown className={`text-muted-foreground transition-transform ${isCollapsed ? '-rotate-90' : ''}`} />
                 </button>
                 {!isCollapsed && (
                   <div className="space-y-0.5">
@@ -60,10 +60,10 @@ export function DocsNav({ activeSlug }) {
                       <Link
                         key={item.slug}
                         href={`/docs/${item.slug}`}
-                        className={`focus-ring block px-2.5 py-1.5 rounded-md text-sm transition-colors ${
+                        className={`block px-2.5 py-1.5 rounded-md text-sm transition-colors ${
                           item.slug === activeSlug
-                            ? 'bg-accent/10 text-accent font-medium'
-                            : 'text-muted hover:text-ink hover:bg-surface2'
+                            ? 'bg-primary/10 text-primary font-medium'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-accent'
                         }`}
                       >
                         {item.title}
@@ -74,7 +74,7 @@ export function DocsNav({ activeSlug }) {
               </div>
             );
           })}
-          {filtered.length === 0 && <p className="text-xs text-muted px-1">No matching pages.</p>}
+          {filtered.length === 0 && <p className="text-xs text-muted-foreground px-1">No matching pages.</p>}
         </div>
       </div>
     </nav>

@@ -5,19 +5,24 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Shell } from '../components/Shell';
 import { api, getToken } from '../lib/api';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Skeleton } from '../components/ui/skeleton';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 
 function StatCard({ label, value, accent }) {
   return (
-    <div className="bg-surface border border-border rounded-xl p-5">
-      <p className="text-xs text-muted font-medium mb-2">{label}</p>
-      <p className={`font-mono text-2xl font-medium ${accent ? 'text-accent' : 'text-ink'}`}>{value}</p>
-    </div>
+    <Card>
+      <CardContent className="pt-6">
+        <p className="text-xs text-muted-foreground font-medium mb-2">{label}</p>
+        <p className={`font-mono text-2xl font-semibold ${accent ? 'text-primary' : ''}`}>{value}</p>
+      </CardContent>
+    </Card>
   );
 }
 
 export default function UsagePage() {
   const router = useRouter();
-  const [rows, setRows] = useState(null); // [{ app, analytics }]
+  const [rows, setRows] = useState(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -46,7 +51,7 @@ export default function UsagePage() {
   if (error) {
     return (
       <Shell>
-        <div className="text-sm text-danger bg-danger/10 border border-danger/30 rounded-md px-3 py-2">{error}</div>
+        <div className="text-sm text-destructive bg-destructive/10 border border-destructive/30 rounded-md px-4 py-3">{error}</div>
       </Shell>
     );
   }
@@ -54,7 +59,10 @@ export default function UsagePage() {
   if (rows === null) {
     return (
       <Shell>
-        <div className="text-muted text-sm font-mono">loading usage…</div>
+        <div className="space-y-4">
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-64 w-full" />
+        </div>
       </Shell>
     );
   }
@@ -75,8 +83,8 @@ export default function UsagePage() {
   return (
     <Shell>
       <div className="mb-8">
-        <h1 className="font-display font-semibold text-2xl">Usage</h1>
-        <p className="text-muted text-sm mt-1">Spend and cache performance across every application.</p>
+        <h1 className="font-display font-semibold text-3xl">Usage</h1>
+        <p className="text-muted-foreground text-sm mt-1">Spend and cache performance across every application.</p>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
@@ -86,46 +94,48 @@ export default function UsagePage() {
         <StatCard label="Saved via cache" value={`$${totals.saved.toFixed(6)}`} accent />
       </div>
 
-      <div className="bg-surface border border-border rounded-xl overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border text-left text-xs text-muted">
-              <th className="px-5 py-3 font-medium">Application</th>
-              <th className="px-5 py-3 font-medium">Requests</th>
-              <th className="px-5 py-3 font-medium">Cache hit rate</th>
-              <th className="px-5 py-3 font-medium">Spend</th>
-              <th className="px-5 py-3 font-medium"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-5 py-8 text-center text-muted text-sm">
-                  No applications yet.
-                </td>
-              </tr>
-            ) : (
-              rows.map(({ app, analytics }) => (
-                <tr key={app.id} className="border-b border-border last:border-b-0">
-                  <td className="px-5 py-3 font-medium">{app.name}</td>
-                  <td className="px-5 py-3 font-mono text-muted">{analytics?.totalRequests ?? '—'}</td>
-                  <td className="px-5 py-3 font-mono text-muted">
-                    {analytics ? `${analytics.cacheHitRate}%` : '—'}
-                  </td>
-                  <td className="px-5 py-3 font-mono text-muted">
-                    {analytics ? `$${analytics.totalCostUsd.toFixed(6)}` : '—'}
-                  </td>
-                  <td className="px-5 py-3 text-right">
-                    <Link href={`/dashboard/${app.id}`} className="text-accent text-xs hover:underline">
-                      View details →
-                    </Link>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Application</TableHead>
+                <TableHead>Requests</TableHead>
+                <TableHead>Cache hit rate</TableHead>
+                <TableHead>Spend</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    No applications yet.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                rows.map(({ app, analytics }) => (
+                  <TableRow key={app.id}>
+                    <TableCell className="font-medium">{app.name}</TableCell>
+                    <TableCell className="font-mono text-muted-foreground">{analytics?.totalRequests ?? '—'}</TableCell>
+                    <TableCell className="font-mono text-muted-foreground">
+                      {analytics ? `${analytics.cacheHitRate}%` : '—'}
+                    </TableCell>
+                    <TableCell className="font-mono text-muted-foreground">
+                      {analytics ? `$${analytics.totalCostUsd.toFixed(6)}` : '—'}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Link href={`/dashboard/${app.id}`} className="text-primary text-xs hover:underline font-medium">
+                        View details →
+                      </Link>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </Shell>
   );
 }

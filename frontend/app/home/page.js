@@ -70,12 +70,12 @@ export default function HomePage() {
         <div>
           <div className="flex items-center gap-3 mb-6">
             <ShieldMark size={36} />
-            <span className="font-display font-semibold text-lg text-ink">AEGIS</span>
+            <span className="font-display font-semibold text-lg">AEGIS</span>
           </div>
-          <h1 className="font-display font-semibold text-4xl sm:text-5xl text-ink leading-[1.1] mb-5 max-w-lg">
+          <h1 className="font-display font-semibold text-4xl sm:text-5xl leading-[1.1] mb-5 max-w-lg">
             Every LLM call, routed, cached, and checked before it leaves the building.
           </h1>
-          <p className="text-sm text-muted max-w-md leading-relaxed mb-8">
+          <p className="text-sm text-muted-foreground max-w-md leading-relaxed mb-8">
             AEGIS sits between your applications and OpenAI, Gemini, Claude, and Ollama.
             It authenticates the request, answers it from cache when it can, strips what
             shouldn't leave your network, and logs what it actually cost — in dollars.
@@ -83,13 +83,13 @@ export default function HomePage() {
           <div className="flex flex-wrap gap-3">
             <Link
               href="/dashboard"
-              className="focus-ring bg-accent text-white text-sm font-medium rounded-lg px-5 py-2.5 hover:opacity-90 transition-opacity"
+              className="bg-primary text-primary-foreground text-sm font-medium rounded-lg px-5 py-2.5 hover:bg-primary/90 transition-colors"
             >
               Go to dashboard
             </Link>
             <Link
               href="/docs"
-              className="focus-ring border border-border text-sm font-medium text-ink rounded-lg px-5 py-2.5 hover:border-accent/40 transition-colors"
+              className="border border-border text-sm font-medium rounded-lg px-5 py-2.5 hover:bg-accent transition-colors"
             >
               Read the docs
             </Link>
@@ -97,18 +97,18 @@ export default function HomePage() {
         </div>
 
         {/* Request flow visual */}
-        <div className="bg-surface border border-border rounded-xl p-6">
-          <p className="text-xs text-muted mb-5">One request, end to end</p>
+        <div className="bg-card border border-border rounded-xl p-6">
+          <p className="text-xs text-muted-foreground mb-5">One request, end to end</p>
           <div>
             {FLOW.map((row, i) => (
               <div key={row.label}>
                 <div className="flex items-start gap-3">
-                  <span className="font-mono text-xs text-accent mt-0.5 w-5 shrink-0">
+                  <span className="font-mono text-xs text-primary mt-0.5 w-5 shrink-0">
                     {String(i + 1).padStart(2, '0')}
                   </span>
                   <div className="pb-4">
-                    <p className="text-sm text-ink font-medium">{row.label}</p>
-                    <p className="text-xs text-muted font-mono mt-0.5">{row.detail}</p>
+                    <p className="text-sm font-medium">{row.label}</p>
+                    <p className="text-xs text-muted-foreground font-mono mt-0.5">{row.detail}</p>
                   </div>
                 </div>
                 {i < FLOW.length - 1 && <div className="ml-2 w-px h-3 bg-border mb-1" />}
@@ -121,28 +121,28 @@ export default function HomePage() {
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-border rounded-xl overflow-hidden mb-16 border border-border">
         {STATS.map((s) => (
-          <div key={s.label} className="bg-surface p-5">
-            <p className="font-mono text-2xl text-ink mb-1">{s.value}</p>
-            <p className="text-xs text-muted leading-snug">{s.label}</p>
+          <div key={s.label} className="bg-card p-5">
+            <p className="font-mono text-2xl mb-1">{s.value}</p>
+            <p className="text-xs text-muted-foreground leading-snug">{s.label}</p>
           </div>
         ))}
       </div>
 
       {/* Pipeline */}
       <div className="mb-16">
-        <h2 className="font-display font-semibold text-xl text-ink mb-1">
+        <h2 className="font-display font-semibold text-xl mb-1">
           What happens to a request
         </h2>
-        <p className="text-sm text-muted mb-6">Four stages, in order, on every call.</p>
+        <p className="text-sm text-muted-foreground mb-6">Four stages, in order, on every call.</p>
         <div className="grid sm:grid-cols-2 gap-4">
           {PIPELINE.map((f) => (
-            <div key={f.name} className="bg-surface border border-border rounded-xl p-5">
+            <div key={f.name} className="bg-card border border-border rounded-xl p-5">
               <div className="flex items-baseline justify-between mb-2">
-                <p className="font-display font-semibold text-sm text-ink">{f.name}</p>
-                <span className="font-mono text-xs text-muted">{f.step}</span>
+                <p className="font-display font-semibold text-sm">{f.name}</p>
+                <span className="font-mono text-xs text-muted-foreground">{f.step}</span>
               </div>
-              <p className="text-xs text-accent mb-2">{f.title}</p>
-              <p className="text-xs text-muted leading-relaxed">{f.desc}</p>
+              <p className="text-xs text-primary mb-2">{f.title}</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">{f.desc}</p>
             </div>
           ))}
         </div>
@@ -150,16 +150,16 @@ export default function HomePage() {
 
       {/* Quick links */}
       <div>
-        <h2 className="font-display font-semibold text-xl text-ink mb-4">Jump back in</h2>
+        <h2 className="font-display font-semibold text-xl mb-4">Jump back in</h2>
         <div className="grid sm:grid-cols-3 gap-3">
           {QUICK_LINKS.map((l) => (
             <Link
               key={l.href}
               href={l.href}
-              className="focus-ring bg-surface border border-border rounded-xl p-4 hover:border-accent/40 transition-colors"
+              className="bg-card border border-border rounded-xl p-4 hover:border-primary/40 transition-colors"
             >
-              <p className="font-medium text-sm text-ink">{l.label}</p>
-              <p className="text-xs text-muted mt-1">{l.desc}</p>
+              <p className="font-medium text-sm">{l.label}</p>
+              <p className="text-xs text-muted-foreground mt-1">{l.desc}</p>
             </Link>
           ))}
         </div>
