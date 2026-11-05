@@ -33,6 +33,11 @@ const PRICING_PER_MILLION_TOKENS = {
   // ── Ollama (local models — no per-token cost) ───────
   // Any model that reaches the OLLAMA provider is free — it's running on
   // your own machine, not billed by a provider.
+
+  // ── xAI / Grok ───────────────────────────────────────
+  // User mentioned "it is free to use" — using minimal pricing
+  'grok-beta': { input: 0.0, output: 0.0 },
+  'grok-2': { input: 0.0, output: 0.0 },
 };
 
 // Used when a specific model isn't in the table above — better to slightly
@@ -49,7 +54,7 @@ const FALLBACK_PRICING = { input: 1.0, output: 5.0 };
  */
 export function calculateCost(provider, model, promptTokens, completionTokens) {
   // Local models cost nothing — this is a real, reportable saving, not a gap.
-  if (provider === 'OLLAMA') return 0;
+  if (provider === 'OLLAMA' || provider === 'GROK') return 0;
 
   const rates = PRICING_PER_MILLION_TOKENS[model?.toLowerCase()] || FALLBACK_PRICING;
 

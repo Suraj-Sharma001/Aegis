@@ -5,6 +5,10 @@ import Link from 'next/link';
 import { ShieldMark } from './ShieldMark';
 import { IconHome, IconKey, IconChart, IconBook, IconLogout, IconPlay, IconList, IconCloud, IconUsers } from './icons';
 import { clearToken, getUser } from '../lib/api';
+import { Badge } from './ui/badge';
+import { Separator } from './ui/separator';
+import { ThemeToggle } from './ThemeToggle';
+import { cn } from '@/lib/utils';
 
 function buildNavGroups(user) {
   const groups = [
@@ -32,8 +36,6 @@ function buildNavGroups(user) {
     },
   ];
 
-  // Access Control is now real (Teams exist) — but only Admins manage it,
-  // so it's only shown to Admins rather than shown-but-broken for everyone.
   if (user?.role === 'ADMIN') {
     groups.push({
       label: 'Access Control',
@@ -58,64 +60,116 @@ export function Shell({ children }) {
   }
 
   return (
-    <div className="min-h-screen flex">
-      <aside className="w-60 shrink-0 border-r border-border bg-surface flex flex-col h-screen sticky top-0">
-        <Link
-          href="/home"
-          className="focus-ring flex items-center gap-2.5 px-5 h-16 border-b border-border hover:bg-surface2 transition-colors"
-        >
-          <ShieldMark size={22} />
-          <span className="font-display font-semibold text-base tracking-tight">Aegis</span>
-        </Link>
+    <div className="min-h-screen flex bg-background">
+      {/* Sidebar with gradient overlay */}
+      <aside className="w-72 shrink-0 border-r border-border/50 flex flex-col h-screen sticky top-0 relative overflow-hidden">
+        {/* Gradient background */}
+        <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-transparent pointer-events-none" />
 
-        <nav className="flex-1 px-3 py-4 space-y-5 overflow-y-auto">
-          {navGroups.map((group) => (
-            <div key={group.label}>
-              <p className="px-3 text-[10px] font-semibold text-muted uppercase tracking-wider mb-1.5">
-                {group.label}
-              </p>
-              <div className="space-y-0.5">
-                {group.items.map((item) => {
-                  const active = item.match(pathname);
-                  const Icon = item.icon;
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className={`focus-ring flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors ${
-                        active
-                          ? 'bg-accent/10 text-accent font-medium border border-accent/25'
-                          : 'text-muted hover:text-ink hover:bg-surface2 border border-transparent'
-                      }`}
-                    >
-                      <Icon />
-                      {item.label}
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </nav>
-
-        <div className="px-3 py-4 border-t border-border">
-          {user && (
-            <p className="px-3 text-xs text-muted font-mono mb-2 truncate" title={user.email}>
-              {user.email} {user.role === 'ADMIN' && <span className="text-accent">· admin</span>}
-            </p>
-          )}
-          <button
-            onClick={handleLogout}
-            className="focus-ring w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-muted hover:text-ink hover:bg-surface2 transition-colors"
+        {/* Content */}
+        <div className="relative z-10 flex flex-col h-full">
+          {/* Logo */}
+          <Link
+            href="/home"
+            className="flex items-center gap-3 px-6 h-20 border-b border-border/50 hover:bg-accent/5 transition-all group"
           >
-            <IconLogout />
-            Sign out
-          </button>
+            <div className="relative">
+              <ShieldMark size={28} />
+              <div className="absolute inset-0 bg-primary/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+            </div>
+            <span className="font-display font-bold text-xl tracking-tight gradient-text">Aegis</span>
+          </Link>
+
+          {/* Navigation */}
+          <nav className="flex-1 px-4 py-6 space-y-8 overflow-y-auto">
+            {navGroups.map((group) => (
+              <div key={group.label}>
+                <p className="px-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <span>{group.label}</span>
+                  <div className="flex-1 h-px bg-border/50" />
+                </p>
+                <div className="space-y-1">
+                  {group.items.map((item) => {
+                    const active = item.match(pathname);
+                    const Icon = item.icon;
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        className={cn(
+                          "flex items-center gap-3 px-3 py-2.5 rounded-lg text-[15px] font-medium transition-all relative group",
+                          active
+                            ? 'bg-primary/10 text-primary shadow-lg shadow-primary/10'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-accent/10'
+                        )}
+                      >
+                        {/* Active indicator bar */}
+                        {active && (
+                          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-primary rounded-r-full shadow-lg shadow-primary/50" />
+                        )}
+
+                        <div className={cn(
+                          "transition-all",
+                          active && "scale-110"
+                        )}>
+                          <Icon />
+                        </div>
+                        {item.label}
+
+                        {/* Hover glow */}
+                        {!active && (
+                          <div className="absolute inset-0 bg-primary/5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity" />
+                        )}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </nav>
+
+          <Separator className="opacity-50" />
+
+          {/* User section with glass effect */}
+          <div className="px-4 py-5 glass m-2 rounded-xl">
+            {user && (
+              <div className="px-3 mb-3">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-semibold truncate flex-1" title={user.email}>
+                    {user.name || user.email.split('@')[0]}
+                  </p>
+                  <ThemeToggle />
+                </div>
+                <div className="flex items-center gap-2">
+                  <p className="text-xs text-muted-foreground font-mono truncate flex-1">
+                    {user.email}
+                  </p>
+                  {user.role === 'ADMIN' && (
+                    <Badge variant="default" className="text-[10px] py-0 h-4 px-1.5">Admin</Badge>
+                  )}
+                  {user.role === 'DEVELOPER' && (
+                    <Badge variant="secondary" className="text-[10px] py-0 h-4 px-1.5">Developer</Badge>
+                  )}
+                  {user.role === 'VIEWER' && (
+                    <Badge variant="outline" className="text-[10px] py-0 h-4 px-1.5">Viewer</Badge>
+                  )}
+                </div>
+              </div>
+            )}
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all group"
+            >
+              <IconLogout />
+              <span>Sign out</span>
+            </button>
+          </div>
         </div>
       </aside>
 
+      {/* Main content area with better spacing */}
       <div className="flex-1 min-w-0">
-        <main className="max-w-6xl mx-auto px-8 py-10">{children}</main>
+        <main className="max-w-[1400px] mx-auto px-8 py-8">{children}</main>
       </div>
     </div>
   );

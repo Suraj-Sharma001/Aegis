@@ -1,11 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { api, SUPPORTED_MODELS } from '..//lib/api';
+import { api, SUPPORTED_MODELS } from '../lib/api';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Badge } from './ui/badge';
 
-// Extracted from the old per-app analytics page test console — now used
-// standalone on the /playground page (matches LiteLLM's separate
-// "Playground" nav item) instead of being buried inside one app's analytics.
 export function TestConsole() {
   const [gatewayKey, setGatewayKey] = useState('');
   const [model, setModel] = useState(SUPPORTED_MODELS[2].models[0]);
@@ -28,88 +31,104 @@ export function TestConsole() {
   }
 
   return (
-    <div className="bg-surface border border-border rounded-xl p-5">
-      <form onSubmit={handleSubmit} className="space-y-3">
-        <div>
-          <label className="block text-xs text-muted mb-1.5 font-medium">Gateway API key</label>
-          <input
-            required
-            value={gatewayKey}
-            onChange={(e) => setGatewayKey(e.target.value)}
-            className="focus-ring w-full bg-surface2 border border-border rounded-md px-3 py-2 text-sm font-mono outline-none"
-            placeholder="aegis_..."
-          />
-        </div>
-        <div className="grid grid-cols-3 gap-3">
-          <div className="col-span-1">
-            <label className="block text-xs text-muted mb-1.5 font-medium">Model</label>
-            <select
-              value={model}
-              onChange={(e) => setModel(e.target.value)}
-              className="focus-ring w-full bg-surface2 border border-border rounded-md px-3 py-2 text-sm font-mono outline-none appearance-none cursor-pointer"
-            >
-              {SUPPORTED_MODELS.map((group) => (
-                <optgroup key={group.provider} label={group.provider}>
-                  {group.models.map((m) => (
-                    <option key={m} value={m}>{m}</option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-          </div>
-          <div className="col-span-2">
-            <label className="block text-xs text-muted mb-1.5 font-medium">Prompt</label>
-            <input
-              required
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              className="focus-ring w-full bg-surface2 border border-border rounded-md px-3 py-2 text-sm outline-none"
-            />
-          </div>
-        </div>
-        <button
-          type="submit"
-          disabled={testing}
-          className="focus-ring bg-accent text-bg font-semibold text-sm rounded-md px-4 py-2 hover:bg-accentDim transition-colors disabled:opacity-50"
-        >
-          {testing ? 'Sending…' : 'Send request'}
-        </button>
-      </form>
+    <div className="grid lg:grid-cols-2 gap-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Request</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="gatewayKey">Gateway API key</Label>
+              <Input
+                id="gatewayKey"
+                required
+                value={gatewayKey}
+                onChange={(e) => setGatewayKey(e.target.value)}
+                className="font-mono"
+                placeholder="aegis_..."
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="model">Model</Label>
+              <select
+                id="model"
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+                className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 font-mono"
+              >
+                {SUPPORTED_MODELS.map((group) => (
+                  <optgroup key={group.provider} label={group.provider}>
+                    {group.models.map((m) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="prompt">Prompt</Label>
+              <Input
+                id="prompt"
+                required
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+              />
+            </div>
+            <Button type="submit" disabled={testing} className="w-full">
+              {testing ? 'Sending…' : 'Send request'}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
 
-      {result && (
-        <div
-          className={`mt-4 rounded-md border px-4 py-3 text-sm ${
-            result.ok ? 'border-accent/30 bg-accent/5' : 'border-danger/30 bg-danger/5'
-          }`}
-        >
-          {result.ok ? (
-            <>
-              <div className="flex items-center gap-2 mb-2 flex-wrap">
-                <span className={`text-xs font-mono px-2 py-0.5 rounded ${result.data.cache_hit ? 'bg-accent/20 text-accent' : 'bg-surface2 text-muted'}`}>
+      <Card>
+        <CardHeader>
+          <CardTitle>Response</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {!result ? (
+            <div className="text-center py-12 text-muted-foreground text-sm">
+              Send a request to see the response
+            </div>
+          ) : result.ok ? (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge variant={result.data.cache_hit ? "default" : "secondary"}>
                   {result.data.cache_hit ? 'CACHE HIT' : 'LIVE CALL'}
-                </span>
-                <span className="text-xs font-mono text-muted">{result.data.latency_ms}ms</span>
-                <span className="text-xs font-mono text-muted">${(result.data.cost_usd ?? 0).toFixed(6)}</span>
+                </Badge>
+                <Badge variant="outline" className="font-mono text-xs">
+                  {result.data.latency_ms}ms
+                </Badge>
+                <Badge variant="outline" className="font-mono text-xs">
+                  ${(result.data.cost_usd ?? 0).toFixed(6)}
+                </Badge>
                 {result.data.similarity_score && (
-                  <span className="text-xs font-mono text-muted">similarity {result.data.similarity_score.toFixed(3)}</span>
+                  <Badge variant="outline" className="font-mono text-xs">
+                    similarity {result.data.similarity_score.toFixed(3)}
+                  </Badge>
                 )}
               </div>
-              <p>{result.data.content}</p>
-            </>
+              <div className="rounded-md bg-muted p-4">
+                <p className="text-sm">{result.data.content}</p>
+              </div>
+            </div>
           ) : (
-            <>
-              <p className="font-medium text-danger">{result.data.error || 'Request blocked'}</p>
+            <div className="text-sm text-destructive bg-destructive/10 border border-destructive/30 rounded-md px-4 py-3">
+              <p className="font-medium">{result.data.error || 'Request blocked'}</p>
               {result.data.findings && (
                 <ul className="mt-2 space-y-1">
                   {result.data.findings.map((f, i) => (
-                    <li key={i} className="font-mono text-xs text-muted">{f.label}: {f.preview}</li>
+                    <li key={i} className="font-mono text-xs">
+                      {f.label}: {f.preview}
+                    </li>
                   ))}
                 </ul>
               )}
-            </>
+            </div>
           )}
-        </div>
-      )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

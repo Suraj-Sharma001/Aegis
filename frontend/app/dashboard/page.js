@@ -5,33 +5,58 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Shell } from '../components/Shell';
 import { api, getToken } from '../lib/api';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { Badge } from '../components/ui/badge';
+import { Skeleton } from '../components/ui/skeleton';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 
-function KeyList({ appId }) {
+function KeyList({ appId, version }) {
   const [keys, setKeys] = useState(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
     api.listApiKeys(appId).then(setKeys).catch((err) => setError(err.data?.error || err.message));
-  }, [appId]);
+  }, [appId, version]);
 
-  if (error) return <p className="text-xs text-danger mt-2">{error}</p>;
-  if (!keys) return <p className="text-xs text-muted font-mono mt-2">loading keys…</p>;
-  if (keys.length === 0) return <p className="text-xs text-muted mt-2">No keys issued yet for this application.</p>;
+  if (error) return <p className="text-xs text-destructive mt-2">{error}</p>;
+  if (!keys) return <div className="mt-3 space-y-2"><Skeleton className="h-8 w-full" /><Skeleton className="h-8 w-full" /></div>;
+  if (keys.length === 0) return <p className="text-xs text-muted-foreground mt-3 text-center py-4">No keys issued yet for this application.</p>;
 
   return (
-    <div className="mt-3 border-t border-border pt-3 space-y-2">
-      {keys.map((k) => (
-        <div key={k.id} className="flex items-center justify-between text-xs">
-          <div className="flex items-center gap-2">
-            <span className={`w-1.5 h-1.5 rounded-full ${k.isActive ? 'bg-accent' : 'bg-muted'}`} />
-            <span className="font-medium">{k.label}</span>
-          </div>
-          <span className="text-muted font-mono">
-            created {new Date(k.createdAt).toLocaleDateString()}
-            {k.lastUsedAt ? ` · last used ${new Date(k.lastUsedAt).toLocaleDateString()}` : ' · never used'}
-          </span>
-        </div>
-      ))}
+    <div className="mt-4 border-t border-border pt-4">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Label</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Created</TableHead>
+            <TableHead>Last Used</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {keys.map((k) => (
+            <TableRow key={k.id}>
+              <TableCell className="font-medium">{k.label}</TableCell>
+              <TableCell>
+                <Badge variant={k.isActive ? "default" : "secondary"} className="text-xs">
+                  {k.isActive ? 'Active' : 'Inactive'}
+                </Badge>
+              </TableCell>
+              <TableCell className="text-muted-foreground text-xs font-mono">
+                {new Date(k.createdAt).toLocaleDateString()}
+              </TableCell>
+              <TableCell className="text-muted-foreground text-xs font-mono">
+                {k.lastUsedAt ? new Date(k.lastUsedAt).toLocaleDateString() : 'Never'}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </div>
   );
 }
@@ -71,12 +96,8 @@ export default function DashboardPage() {
     try {
       const t = await api.listTeams();
       setTeams(t);
-      // Deliberately NOT auto-selecting teams[0] here — silently defaulting
-      // to a team (which is always "Default Team", since it's the oldest)
-      // makes it easy to create an application in the wrong team without
-      // noticing. The dropdown starts empty and forces a real choice.
     } catch (err) {
-      // Non-fatal — if teams fail to load, the create form just won't have options.
+      // Non-fatal
     }
   }
 
@@ -87,10 +108,11 @@ export default function DashboardPage() {
       return;
     }
     setCreating(true);
+    setError('');
     try {
       await api.createApplication(newAppName, newAppTeamId);
       setNewAppName('');
-      setNewAppTeamId(''); // reset so the NEXT app also forces a deliberate choice
+      setNewAppTeamId('');
       setShowCreate(false);
       await loadApps();
     } catch (err) {
@@ -102,6 +124,7 @@ export default function DashboardPage() {
 
   async function handleIssueKey(appId) {
     setIssuingFor(appId);
+    setError('');
     try {
       const data = await api.createApiKey(appId, `Key issued ${new Date().toLocaleString()}`);
       setRevealedKey({ appId, key: data.apiKey });
@@ -119,132 +142,182 @@ export default function DashboardPage() {
     <Shell>
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="font-display font-semibold text-2xl">Applications</h1>
-          <p className="text-muted text-sm mt-1">You're seeing applications for your team(s) only — Admins see all.</p>
+          <h1 className="font-display font-semibold text-3xl">Applications</h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Manage your AI gateway applications and API keys
+          </p>
         </div>
-        <button
-          onClick={() => setShowCreate((s) => !s)}
-          disabled={teams.length === 0}
-          className="focus-ring bg-accent text-bg font-semibold text-sm rounded-md px-4 py-2 hover:bg-accentDim transition-colors disabled:opacity-40"
-          title={teams.length === 0 ? 'You need to be on a team before creating an application' : ''}
-        >
-          + New application
-        </button>
+        <Dialog open={showCreate} onOpenChange={setShowCreate}>
+          <DialogTrigger asChild>
+            <Button disabled={teams.length === 0}>
+              + New application
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create application</DialogTitle>
+              <DialogDescription>
+                Create a new application to get started with the AI gateway
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleCreateApp} className="space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label htmlFor="appName">Application name</Label>
+                <Input
+                  id="appName"
+                  required
+                  autoFocus
+                  value={newAppName}
+                  onChange={(e) => setNewAppName(e.target.value)}
+                  placeholder="e.g. Support Chatbot"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="team">Team</Label>
+                <Select value={newAppTeamId} onValueChange={setNewAppTeamId} required>
+                  <SelectTrigger id="team">
+                    <SelectValue placeholder="Select a team..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {teams.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex justify-end gap-2 pt-4">
+                <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={creating}>
+                  {creating ? 'Creating…' : 'Create'}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {error && (
-        <div className="text-sm text-danger bg-danger/10 border border-danger/30 rounded-md px-3 py-2 mb-6">
+        <div className="text-sm text-destructive bg-destructive/10 border border-destructive/30 rounded-md px-4 py-3 mb-6">
           {error}
         </div>
       )}
 
       {teams.length === 0 && apps?.length === 0 && (
-        <div className="text-sm text-warn bg-warn/10 border border-warn/30 rounded-md px-3 py-2 mb-6">
-          You're not on any team yet — ask an Admin to add you to one from the Teams page before creating applications.
-        </div>
-      )}
-
-      {showCreate && (
-        <form onSubmit={handleCreateApp} className="bg-surface border border-border rounded-xl p-5 mb-6 flex items-end gap-3">
-          <div className="flex-1">
-            <label className="block text-xs text-muted mb-1.5 font-medium">Application name</label>
-            <input
-              required
-              autoFocus
-              value={newAppName}
-              onChange={(e) => setNewAppName(e.target.value)}
-              className="focus-ring w-full bg-surface2 border border-border rounded-md px-3 py-2 text-sm outline-none"
-              placeholder="e.g. Support Chatbot"
-            />
-          </div>
-          <div className="w-48">
-            <label className="block text-xs text-muted mb-1.5 font-medium">Team</label>
-            <select
-              required
-              value={newAppTeamId}
-              onChange={(e) => setNewAppTeamId(e.target.value)}
-              className="focus-ring w-full bg-surface2 border border-border rounded-md px-3 py-2 text-sm outline-none cursor-pointer"
-            >
-              <option value="" disabled>Select a team…</option>
-              {teams.map((t) => (
-                <option key={t.id} value={t.id}>{t.name}</option>
-              ))}
-            </select>
-          </div>
-          <button
-            type="submit"
-            disabled={creating}
-            className="focus-ring bg-accent text-bg font-semibold text-sm rounded-md px-4 py-2 hover:bg-accentDim transition-colors disabled:opacity-50"
-          >
-            {creating ? 'Creating…' : 'Create'}
-          </button>
-        </form>
+        <Card className="mb-6 border-orange-500/30 bg-orange-500/5">
+          <CardContent className="pt-6">
+            <p className="text-sm text-orange-600 dark:text-orange-400">
+              You're not on any team yet — ask an Admin to add you to one from the Teams page before creating applications.
+            </p>
+          </CardContent>
+        </Card>
       )}
 
       {revealedKey && (
-        <div className="bg-surface border border-accent/40 rounded-xl p-5 mb-6">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-accent" />
-            <p className="text-sm font-medium text-accent">Gateway key generated — save it now</p>
-          </div>
-          <p className="text-xs text-muted mb-3">This key will not be shown again. Store it somewhere safe.</p>
-          <code className="block bg-bg border border-border rounded-md px-3 py-2 text-sm font-mono text-ink break-all">
-            {revealedKey.key}
-          </code>
-          <button onClick={() => setRevealedKey(null)} className="focus-ring text-xs text-muted hover:text-ink mt-3">
-            Dismiss
-          </button>
-        </div>
+        <Card className="mb-6 border-primary/40 bg-primary/5">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-primary" />
+              Gateway key generated
+            </CardTitle>
+            <CardDescription>
+              This key will not be shown again. Store it somewhere safe.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="bg-background border border-border rounded-md p-3 mb-4">
+              <code className="text-sm font-mono break-all">
+                {revealedKey.key}
+              </code>
+            </div>
+            <Button onClick={() => setRevealedKey(null)} variant="outline" size="sm">
+              Dismiss
+            </Button>
+          </CardContent>
+        </Card>
       )}
 
       {apps === null ? (
-        <div className="text-muted text-sm font-mono">loading…</div>
-      ) : apps.length === 0 ? (
-        <div className="bg-surface border border-border rounded-xl p-10 text-center">
-          <p className="text-muted text-sm">No applications visible to you yet.</p>
+        <div className="space-y-4">
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-32 w-full" />
         </div>
-      ) : (
-        <div className="grid gap-3">
-          {apps.map((app) => (
-            <div key={app.id} className="bg-surface border border-border rounded-xl p-5 hover:border-accent/30 transition-colors">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="font-medium">{app.name}</p>
-                    {app.team && (
-                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface2 text-muted border border-border">
-                        {app.team.name}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-muted font-mono mt-1">
-                    {app._count?.auditLogs ?? 0} requests · {app._count?.apiKeys ?? 0} key(s)
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setExpandedApp(expandedApp === app.id ? null : app.id)}
-                    className="focus-ring text-sm text-muted hover:text-ink transition-colors px-3 py-1.5 rounded-md border border-border hover:border-accent/40"
-                  >
-                    {expandedApp === app.id ? 'Hide keys' : `View keys (${app._count?.apiKeys ?? 0})`}
-                  </button>
-                  <button
-                    onClick={() => handleIssueKey(app.id)}
-                    disabled={issuingFor === app.id}
-                    className="focus-ring text-sm text-muted hover:text-ink transition-colors px-3 py-1.5 rounded-md border border-border hover:border-accent/40 disabled:opacity-50"
-                  >
-                    {issuingFor === app.id ? 'Issuing…' : 'Issue new key'}
-                  </button>
-                  <Link
-                    href={`/dashboard/${app.id}`}
-                    className="focus-ring text-sm text-bg bg-accent font-semibold px-3 py-1.5 rounded-md hover:bg-accentDim transition-colors"
-                  >
-                    View analytics
-                  </Link>
-                </div>
+      ) : apps.length === 0 ? (
+        <Card>
+          <CardContent className="pt-16 pb-16 text-center">
+            <div className="flex flex-col items-center gap-4">
+              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground">
+                  <rect width="8" height="4" x="8" y="2" rx="1" ry="1"/>
+                  <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+                </svg>
               </div>
-              {expandedApp === app.id && <KeyList key={keyListVersion} appId={app.id} />}
+              <div>
+                <h3 className="font-semibold text-lg mb-1">No applications yet</h3>
+                <p className="text-sm text-muted-foreground">
+                  Create your first application to start using the AI gateway
+                </p>
+              </div>
+              <Button onClick={() => setShowCreate(true)} disabled={teams.length === 0}>
+                Create application
+              </Button>
             </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {apps.map((app) => (
+            <Card key={app.id} className="hover:shadow-md transition-shadow">
+              <CardHeader>
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <CardTitle className="text-xl">{app.name}</CardTitle>
+                      {app.team && (
+                        <Badge variant="secondary" className="text-xs">
+                          {app.team.name}
+                        </Badge>
+                      )}
+                    </div>
+                    <CardDescription className="font-mono text-xs">
+                      {app._count?.auditLogs ?? 0} requests · {app._count?.apiKeys ?? 0} key(s)
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleIssueKey(app.id)}
+                      disabled={issuingFor === app.id}
+                    >
+                      {issuingFor === app.id ? 'Issuing…' : 'Issue key'}
+                    </Button>
+                    <Button asChild size="sm">
+                      <Link href={`/dashboard/${app.id}`}>
+                        View analytics
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-2 mb-3">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setExpandedApp(expandedApp === app.id ? null : app.id)}
+                    className="text-xs"
+                  >
+                    {expandedApp === app.id ? '▼ Hide keys' : `▶ View keys (${app._count?.apiKeys ?? 0})`}
+                  </Button>
+                </div>
+                {expandedApp === app.id && <KeyList appId={app.id} version={keyListVersion} />}
+              </CardContent>
+            </Card>
           ))}
         </div>
       )}

@@ -53,3 +53,8 @@ desktop.ini
 # ── Project memory / internal docs ────────────────────
 Progress.md
 Memory.md
+redis.md
+frontend/README.md
+*.plan.md
+.claude/
+.claude-omniroute/

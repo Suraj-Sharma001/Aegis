@@ -5,6 +5,10 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ShieldMark } from '../components/ShieldMark';
 import { api, setToken, setUser } from '../lib/api';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Button } from '../components/ui/button';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -30,57 +34,61 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
+    <div className="min-h-screen flex items-center justify-center px-4 bg-background">
+      <div className="w-full max-w-md">
         <div className="flex flex-col items-center gap-3 mb-8">
-          <ShieldMark size={40} />
-          <h1 className="font-display font-semibold text-2xl">Aegis</h1>
-          <p className="text-muted text-sm">Sign in to your gateway console</p>
+          <ShieldMark size={48} />
+          <h1 className="font-display font-semibold text-3xl">Aegis</h1>
+          <p className="text-muted-foreground text-sm">Sign in to your gateway console</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-surface border border-border rounded-xl p-6 space-y-4">
-          {error && (
-            <div className="text-sm text-danger bg-danger/10 border border-danger/30 rounded-md px-3 py-2">
-              {error}
-            </div>
-          )}
+        <Card>
+          <CardHeader>
+            <CardTitle>Welcome back</CardTitle>
+            <CardDescription>Enter your credentials to access your account</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {error && (
+                <div className="text-sm text-destructive bg-destructive/10 border border-destructive/30 rounded-md px-3 py-2">
+                  {error}
+                </div>
+              )}
 
-          <div>
-            <label className="block text-xs text-muted mb-1.5 font-medium">Email</label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="focus-ring w-full bg-surface2 border border-border rounded-md px-3 py-2 text-sm outline-none"
-              placeholder="you@company.com"
-            />
-          </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@company.com"
+                />
+              </div>
 
-          <div>
-            <label className="block text-xs text-muted mb-1.5 font-medium">Password</label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="focus-ring w-full bg-surface2 border border-border rounded-md px-3 py-2 text-sm outline-none"
-              placeholder="••••••••"
-            />
-          </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                />
+              </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="focus-ring w-full bg-accent text-bg font-semibold text-sm rounded-md py-2.5 hover:bg-accentDim transition-colors disabled:opacity-50"
-          >
-            {loading ? 'Signing in…' : 'Sign in'}
-          </button>
-        </form>
+              <Button type="submit" disabled={loading} className="w-full">
+                {loading ? 'Signing in…' : 'Sign in'}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
 
-        <p className="text-center text-sm text-muted mt-5">
+        <p className="text-center text-sm text-muted-foreground mt-6">
           No account?{' '}
-          <Link href="/register" className="text-accent hover:underline">
+          <Link href="/register" className="text-primary hover:underline font-medium">
             Register your organization
           </Link>
         </p>

@@ -1,81 +1,149 @@
-// ── Governance / PII Detection Layer ────────────────────────────────────
+// ── Production-Grade Governance / PII Detection Layer ────────────────────
 // Scans incoming prompts for sensitive data BEFORE they reach any AI
-// provider. Default policy: BLOCK the request entirely if anything is
-// found — safer than trying to "clean" and forward, since partial masking
-// can still leak enough context, and silently modifying a user's prompt
-// is its own kind of surprise.
+// provider. Configurable per-organization with allowlist support.
 //
-// This is intentionally regex-based (not an ML model) for Phase 1 of this
-// layer — it's fast, has zero external dependencies, and is easy to explain
-// and defend in a viva ("here are the exact patterns, here's why each one
-// matters"). A production system would likely add a proper NER model for
-// names/addresses on top of this — worth naming as future work in your
-// report if asked about limitations.
+// Pattern-based detection (fast, zero dependencies, auditable) with
+// improved accuracy via Luhn validation for credit cards and better
+// regex patterns to reduce false positives.
 
 const PATTERNS = {
   EMAIL: {
-    regex: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g,
+    regex: /\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b/g,
     label: 'Email address',
+    severity: 'HIGH',
   },
   PHONE: {
-    // Matches most international formats: +91 98765 43210, (555) 123-4567, etc.
-    regex: /(?:\+?\d{1,3}[-.\s]?)?\(?\d{3,5}\)?[-.\s]?\d{3,4}[-.\s]?\d{3,4}\b/g,
+    // International formats: +1 555-123-4567, (555) 123-4567, +44 20 1234 5678
+    // Requires at least 10 digits to avoid false positives on short numbers
+    regex: /(?:\+?(\d{1,3}))?[-.\s]?\(?(\d{3})\)?[-.\s]?(\d{3})[-.\s]?(\d{4})\b/g,
     label: 'Phone number',
+    severity: 'MEDIUM',
   },
   CREDIT_CARD: {
-    // 13-19 digits, optionally separated by spaces or dashes in groups of 4
-    regex: /\b(?:\d[ -]*?){13,19}\b/g,
+    // 13-19 digits with optional spaces/dashes, validated with Luhn algorithm
+    regex: /\b(?:\d[-\s]?){12,18}\d\b/g,
     label: 'Credit card number',
+    severity: 'CRITICAL',
+    validate: luhnCheck,
+  },
+  SSN: {
+    // US SSN format: XXX-XX-XXXX (strict format only to avoid false positives)
+    regex: /\b\d{3}-\d{2}-\d{4}\b/g,
+    label: 'Social Security Number',
+    severity: 'CRITICAL',
   },
   AADHAAR: {
     // Indian Aadhaar: exactly 12 digits, often shown as XXXX XXXX XXXX
-    regex: /\b\d{4}[ -]?\d{4}[ -]?\d{4}\b/g,
-    label: 'Aadhaar-style ID number',
-  },
-  SSN: {
-    // US SSN format: XXX-XX-XXXX
-    regex: /\b\d{3}-\d{2}-\d{4}\b/g,
-    label: 'SSN-style ID number',
+    regex: /\b\d{4}[-\s]?\d{4}[-\s]?\d{4}\b/g,
+    label: 'Aadhaar number',
+    severity: 'HIGH',
   },
   OPENAI_KEY: {
-    // Covers both the legacy format (sk-<alphanumeric>) and the newer
-    // project-scoped format (sk-proj-<alphanumeric with hyphens/underscores>).
-    // The old pattern only matched [a-zA-Z0-9], which stopped at the first
-    // hyphen in "sk-proj-..." keys and let them through undetected.
+    // Covers sk-<chars> and sk-proj-<chars> formats
     regex: /\bsk-(proj-)?[a-zA-Z0-9_-]{20,}\b/g,
     label: 'OpenAI API key',
+    severity: 'CRITICAL',
   },
   ANTHROPIC_KEY: {
-    regex: /\bsk-ant-[a-zA-Z0-9-]{20,}\b/g,
+    regex: /\bsk-ant-[a-zA-Z0-9_-]{20,}\b/g,
     label: 'Anthropic API key',
+    severity: 'CRITICAL',
   },
   AWS_KEY: {
     regex: /\b(AKIA|ASIA)[A-Z0-9]{16}\b/g,
     label: 'AWS access key',
+    severity: 'CRITICAL',
+  },
+  GOOGLE_API_KEY: {
+    regex: /\bAIza[0-9A-Za-z_-]{35}\b/g,
+    label: 'Google API key',
+    severity: 'CRITICAL',
+  },
+  GITHUB_TOKEN: {
+    regex: /\bgh[pousr]_[A-Za-z0-9_]{36,}\b/g,
+    label: 'GitHub token',
+    severity: 'CRITICAL',
   },
   GENERIC_SECRET: {
-    // Catches "api_key: <long random string>", "token=<long random string>" etc.
+    // Catches "api_key: <long string>", "token=<long string>" patterns
     regex: /(?:api[_-]?key|secret|token|password)\s*[:=]\s*['"]?[a-zA-Z0-9_\-]{16,}['"]?/gi,
     label: 'Possible API key or secret',
+    severity: 'HIGH',
+  },
+  IP_ADDRESS: {
+    // IPv4 addresses (basic check, not full validation)
+    regex: /\b(?:\d{1,3}\.){3}\d{1,3}\b/g,
+    label: 'IP address',
+    severity: 'LOW',
+    validate: (match) => {
+      const parts = match.split('.');
+      return parts.length === 4 && parts.every(p => parseInt(p) <= 255);
+    },
   },
 };
 
 /**
- * Scans text for sensitive patterns.
- * @param {string} text
- * @returns {Array<{type: string, label: string, match: string}>}
+ * Luhn algorithm for credit card validation (reduces false positives)
+ * @param {string} cardNumber
+ * @returns {boolean}
  */
-export function scanForPII(text) {
+function luhnCheck(cardNumber) {
+  const digits = cardNumber.replace(/\D/g, '');
+  if (digits.length < 13 || digits.length > 19) return false;
+
+  let sum = 0;
+  let isEven = false;
+
+  for (let i = digits.length - 1; i >= 0; i--) {
+    let digit = parseInt(digits[i]);
+
+    if (isEven) {
+      digit *= 2;
+      if (digit > 9) digit -= 9;
+    }
+
+    sum += digit;
+    isEven = !isEven;
+  }
+
+  return sum % 10 === 0;
+}
+
+/**
+ * Scans text for sensitive patterns with validation
+ * @param {string} text
+ * @param {Object} config - Optional config with enabled patterns and allowlist
+ * @returns {Array<{type: string, label: string, match: string, severity: string}>}
+ */
+export function scanForPII(text, config = {}) {
   if (!text) return [];
 
-  const findings = [];
+  const {
+    enabledPatterns = Object.keys(PATTERNS),
+    allowlist = [],
+    minSeverity = 'LOW',
+  } = config;
 
-  for (const [type, { regex, label }] of Object.entries(PATTERNS)) {
-    const matches = text.match(regex);
-    if (matches) {
-      for (const match of matches) {
-        findings.push({ type, label, match });
-      }
+  const findings = [];
+  const severityOrder = { LOW: 0, MEDIUM: 1, HIGH: 2, CRITICAL: 3 };
+  const minSeverityLevel = severityOrder[minSeverity] || 0;
+
+  for (const [type, { regex, label, severity, validate }] of Object.entries(PATTERNS)) {
+    // Skip if pattern is disabled or below min severity
+    if (!enabledPatterns.includes(type)) continue;
+    if (severityOrder[severity] < minSeverityLevel) continue;
+
+    const matches = text.matchAll(new RegExp(regex.source, regex.flags));
+    for (const matchObj of matches) {
+      const match = matchObj[0];
+
+      // Skip if in allowlist
+      if (allowlist.some((allowed) => match.includes(allowed))) continue;
+
+      // Apply additional validation if defined
+      if (validate && !validate(match)) continue;
+
+      findings.push({ type, label, match, severity });
     }
   }
 
@@ -83,26 +151,42 @@ export function scanForPII(text) {
 }
 
 /**
- * Scans every message in a conversation array (checks user + system turns,
- * skips assistant turns since those weren't supplied by the caller).
+ * Scans every message in a conversation array
  * @param {Array<{role: string, content: string}>} messages
- * @returns {Array<{type: string, label: string, match: string}>}
+ * @param {Object} config - Optional governance config
+ * @returns {Array<{type: string, label: string, match: string, severity: string}>}
  */
-export function scanMessages(messages) {
+export function scanMessages(messages, config = {}) {
   const findings = [];
   for (const msg of messages) {
+    // Skip assistant messages (not user-supplied)
     if (msg.role === 'assistant') continue;
-    findings.push(...scanForPII(msg.content));
+    findings.push(...scanForPII(msg.content, config));
   }
   return findings;
 }
 
-// Masks matched sensitive substrings — used for logging findings without
-// storing the actual sensitive value anywhere (e.g. in an audit log).
+/**
+ * Masks matched sensitive substrings for safe logging
+ * @param {Array} findings
+ * @returns {Array<{type: string, label: string, preview: string, severity: string}>}
+ */
 export function maskFindings(findings) {
   return findings.map((f) => ({
     type: f.type,
     label: f.label,
-    preview: f.match.length > 4 ? `${f.match.slice(0, 2)}***${f.match.slice(-2)}` : '***',
+    severity: f.severity,
+    preview: f.match.length > 6 ? `${f.match.slice(0, 3)}***${f.match.slice(-3)}` : '***',
   }));
 }
+
+/**
+ * Default governance configuration
+ */
+export const DEFAULT_GOVERNANCE_CONFIG = {
+  enabled: true,
+  mode: 'BLOCK', // BLOCK, WARN, or ALLOW
+  enabledPatterns: Object.keys(PATTERNS),
+  allowlist: [],
+  minSeverity: 'LOW',
+};

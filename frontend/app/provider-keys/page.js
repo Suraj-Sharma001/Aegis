@@ -4,6 +4,14 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Shell } from '../components/Shell';
 import { api, getToken, PROVIDER_OPTIONS } from '../lib/api';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
+import { Badge } from '../components/ui/badge';
+import { Skeleton } from '../components/ui/skeleton';
 
 export default function ProviderKeysPage() {
   const router = useRouter();
@@ -64,118 +72,150 @@ export default function ProviderKeysPage() {
   return (
     <Shell>
       <div className="mb-8">
-        <h1 className="font-display font-semibold text-2xl">Provider Keys</h1>
-        <p className="text-muted text-sm mt-1 max-w-2xl">
+        <h1 className="font-display font-semibold text-3xl">Provider Keys</h1>
+        <p className="text-muted-foreground text-sm mt-1 max-w-2xl">
           Bring your own API key for each provider. Every request your applications make is billed to
-          <span className="text-ink font-medium"> your</span> account — nothing routes through a shared
+          <span className="text-foreground font-medium"> your</span> account — nothing routes through a shared
           key. Keys are encrypted at rest and never shown again after saving.
         </p>
       </div>
 
       {error && (
-        <div className="text-sm text-danger bg-danger/10 border border-danger/30 rounded-md px-3 py-2 mb-6">
+        <div className="text-sm text-destructive bg-destructive/10 border border-destructive/30 rounded-md px-4 py-3 mb-6">
           {error}
         </div>
       )}
       {success && (
-        <div className="text-sm text-accent bg-accent/10 border border-accent/30 rounded-md px-3 py-2 mb-6">
+        <div className="text-sm text-primary bg-primary/10 border border-primary/30 rounded-md px-4 py-3 mb-6">
           {success}
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="bg-surface border border-border rounded-xl p-5 mb-8">
-        <p className="text-sm font-medium mb-4">Add a key</p>
-        <div className="grid sm:grid-cols-3 gap-3 mb-3">
-          <div>
-            <label className="block text-xs text-muted mb-1.5 font-medium">Provider</label>
-            <select
-              value={form.provider}
-              onChange={(e) => setForm((f) => ({ ...f, provider: e.target.value }))}
-              className="focus-ring w-full bg-surface2 border border-border rounded-md px-3 py-2 text-sm outline-none cursor-pointer"
-            >
-              {PROVIDER_OPTIONS.filter((p) => p !== 'OLLAMA').map((p) => (
-                <option key={p} value={p}>{p}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-muted mb-1.5 font-medium">Label (optional)</label>
-            <input
-              value={form.label}
-              onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))}
-              placeholder="Production key"
-              className="focus-ring w-full bg-surface2 border border-border rounded-md px-3 py-2 text-sm outline-none"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-muted mb-1.5 font-medium">API Key</label>
-            <input
-              required
-              type="password"
-              value={form.apiKey}
-              onChange={(e) => setForm((f) => ({ ...f, apiKey: e.target.value }))}
-              placeholder="sk-..."
-              className="focus-ring w-full bg-surface2 border border-border rounded-md px-3 py-2 text-sm font-mono outline-none"
-            />
-          </div>
-        </div>
-        <button
-          type="submit"
-          disabled={saving}
-          className="focus-ring bg-accent text-bg font-semibold text-sm rounded-md px-4 py-2 hover:bg-accentDim transition-colors disabled:opacity-50"
-        >
-          {saving ? 'Saving…' : 'Save key'}
-        </button>
-      </form>
+      <Card className="mb-8">
+        <CardHeader>
+          <CardTitle>Add a provider key</CardTitle>
+          <CardDescription>Configure your API keys for OpenAI, Claude, or Gemini</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid sm:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="provider">Provider</Label>
+                <Select
+                  value={form.provider}
+                  onValueChange={(value) => setForm((f) => ({ ...f, provider: value }))}
+                >
+                  <SelectTrigger id="provider">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PROVIDER_OPTIONS.filter((p) => p !== 'OLLAMA').map((p) => (
+                      <SelectItem key={p} value={p}>{p}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="label">Label (optional)</Label>
+                <Input
+                  id="label"
+                  value={form.label}
+                  onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))}
+                  placeholder="Production key"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="apiKey">API Key</Label>
+                <Input
+                  id="apiKey"
+                  required
+                  type="password"
+                  value={form.apiKey}
+                  onChange={(e) => setForm((f) => ({ ...f, apiKey: e.target.value }))}
+                  placeholder="sk-..."
+                  className="font-mono"
+                />
+              </div>
+            </div>
+            <Button type="submit" disabled={saving}>
+              {saving ? 'Saving…' : 'Save key'}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
 
-      <div className="bg-surface border border-border rounded-xl overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border text-left text-xs text-muted">
-              <th className="px-5 py-3 font-medium">Provider</th>
-              <th className="px-5 py-3 font-medium">Label</th>
-              <th className="px-5 py-3 font-medium">Status</th>
-              <th className="px-5 py-3 font-medium">Added</th>
-              <th className="px-5 py-3 font-medium"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {keys === null ? (
-              <tr><td colSpan={5} className="px-5 py-8 text-center text-muted text-sm font-mono">loading…</td></tr>
-            ) : keys.length === 0 ? (
-              <tr><td colSpan={5} className="px-5 py-8 text-center text-muted text-sm">No provider keys added yet — requests will fail until you add one for each provider you plan to use.</td></tr>
-            ) : (
-              keys.map((k) => (
-                <tr key={k.id} className="border-b border-border last:border-b-0">
-                  <td className="px-5 py-3 font-mono text-xs">{k.provider}</td>
-                  <td className="px-5 py-3">{k.label}</td>
-                  <td className="px-5 py-3">
-                    <span className={`inline-flex items-center gap-1.5 text-xs ${k.isActive ? 'text-accent' : 'text-muted'}`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${k.isActive ? 'bg-accent' : 'bg-muted'}`} />
-                      {k.isActive ? 'Active' : 'Replaced'}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3 font-mono text-xs text-muted">{new Date(k.createdAt).toLocaleDateString()}</td>
-                  <td className="px-5 py-3 text-right">
-                    {k.isActive && (
-                      <button
-                        onClick={() => handleDelete(k.id, k.provider)}
-                        className="text-xs text-danger hover:underline"
-                      >
-                        Remove
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      <p className="text-xs text-muted mt-4">
-        Ollama (local models) needs no key — it runs on your own machine and is always free.
-      </p>
+      <Card>
+        <CardHeader>
+          <CardTitle>Your provider keys</CardTitle>
+          <CardDescription>Manage your configured API keys</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {keys === null ? (
+            <div className="space-y-2">
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+            </div>
+          ) : keys.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground">
+                  <path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4"/>
+                  <path d="m21 2-9.6 9.6"/>
+                  <circle cx="7.5" cy="15.5" r="5.5"/>
+                </svg>
+              </div>
+              <h3 className="font-semibold mb-1">No provider keys yet</h3>
+              <p className="text-sm text-muted-foreground">
+                Add your first provider key to start routing requests
+              </p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Provider</TableHead>
+                  <TableHead>Label</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Added</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {keys.map((k) => (
+                  <TableRow key={k.id}>
+                    <TableCell className="font-mono text-xs font-medium">{k.provider}</TableCell>
+                    <TableCell>{k.label}</TableCell>
+                    <TableCell>
+                      <Badge variant={k.isActive ? "default" : "secondary"} className="text-xs">
+                        {k.isActive ? 'Active' : 'Replaced'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="font-mono text-xs text-muted-foreground">
+                      {new Date(k.createdAt).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {k.isActive && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDelete(k.id, k.provider)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          Remove
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+          <p className="text-xs text-muted-foreground mt-4">
+            Ollama (local models) needs no key — it runs on your own machine and is always free.
+          </p>
+        </CardContent>
+      </Card>
     </Shell>
   );
 }

@@ -29,6 +29,7 @@ enum Provider {
   GEMINI
   CLAUDE
   OLLAMA
+  GROK
 }
 
 model Organization {

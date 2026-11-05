@@ -7,14 +7,14 @@ import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveCo
 import { Shell } from '../../components/Shell';
 import { api, getToken } from '../../lib/api';
 
-const PIE_COLORS = ['#3ED6B5', '#232E45'];
+const PIE_COLORS = ['hsl(142, 76%, 36%)', 'hsl(240, 5%, 26%)'];
 
 function StatCard({ label, value, sub, accent }) {
   return (
-    <div className="bg-surface border border-border rounded-xl p-5">
-      <p className="text-xs text-muted font-medium mb-2">{label}</p>
-      <p className={`font-mono text-2xl font-medium ${accent ? 'text-accent' : 'text-ink'}`}>{value}</p>
-      {sub && <p className="text-xs text-muted mt-1">{sub}</p>}
+    <div className="bg-card border border-border rounded-xl p-5">
+      <p className="text-xs text-muted-foreground font-medium mb-2">{label}</p>
+      <p className={`font-mono text-2xl font-medium ${accent ? 'text-primary' : ''}`}>{value}</p>
+      {sub && <p className="text-xs text-muted-foreground mt-1">{sub}</p>}
     </div>
   );
 }
@@ -45,7 +45,7 @@ export default function AnalyticsPage() {
   if (error) {
     return (
       <Shell>
-        <div className="text-sm text-danger bg-danger/10 border border-danger/30 rounded-md px-3 py-2">{error}</div>
+        <div className="text-sm text-destructive bg-destructive/10 border border-destructive/30 rounded-md px-4 py-3">{error}</div>
       </Shell>
     );
   }
@@ -53,7 +53,7 @@ export default function AnalyticsPage() {
   if (!data) {
     return (
       <Shell>
-        <div className="text-muted text-sm font-mono">loading analytics…</div>
+        <div className="text-muted-foreground text-sm font-mono">loading analytics…</div>
       </Shell>
     );
   }
@@ -72,18 +72,18 @@ export default function AnalyticsPage() {
   return (
     <Shell>
       <div className="flex items-center justify-between mb-3">
-        <Link href="/dashboard" className="text-sm text-muted hover:text-ink transition-colors">
+        <Link href="/dashboard" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
           ← Applications
         </Link>
         <Link
           href="/playground"
-          className="focus-ring text-sm text-bg bg-accent font-semibold px-3 py-1.5 rounded-md hover:bg-accentDim transition-colors"
+          className="text-sm bg-primary text-primary-foreground font-semibold px-3 py-1.5 rounded-md hover:bg-primary/90 transition-colors"
         >
           Try in Playground →
         </Link>
       </div>
 
-      <h1 className="font-display font-semibold text-2xl mt-3 mb-8">Analytics</h1>
+      <h1 className="font-display font-semibold text-3xl mt-3 mb-8">Analytics</h1>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <StatCard label="Total requests" value={data.totalRequests} />
@@ -98,8 +98,8 @@ export default function AnalyticsPage() {
       </div>
 
       <div className="grid md:grid-cols-2 gap-4">
-        <div className="bg-surface border border-border rounded-xl p-5">
-          <p className="text-xs text-muted font-medium mb-4">Cache performance</p>
+        <div className="bg-card border border-border rounded-xl p-5">
+          <p className="text-xs text-muted-foreground font-medium mb-4">Cache performance</p>
           {data.totalRequests > 0 ? (
             <ResponsiveContainer width="100%" height={200}>
               <PieChart>
@@ -108,28 +108,28 @@ export default function AnalyticsPage() {
                     <Cell key={i} fill={PIE_COLORS[i]} stroke="none" />
                   ))}
                 </Pie>
-                <Tooltip contentStyle={{ background: '#131B2E', border: '1px solid #232E45', borderRadius: 8, fontSize: 12 }} />
+                <Tooltip contentStyle={{ background: 'hsl(240, 10%, 6%)', border: '1px solid hsl(240, 6%, 20%)', borderRadius: 8, fontSize: 12, color: 'hsl(240, 5%, 65%)' }} />
               </PieChart>
             </ResponsiveContainer>
           ) : (
-            <p className="text-muted text-sm py-16 text-center">No requests yet</p>
+            <p className="text-muted-foreground text-sm py-16 text-center">No requests yet</p>
           )}
         </div>
 
-        <div className="bg-surface border border-border rounded-xl p-5">
-          <p className="text-xs text-muted font-medium mb-4">Requests by provider</p>
+        <div className="bg-card border border-border rounded-xl p-5">
+          <p className="text-xs text-muted-foreground font-medium mb-4">Requests by provider</p>
           {providerData.length > 0 ? (
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={providerData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#232E45" />
-                <XAxis dataKey="provider" stroke="#8B95AC" fontSize={11} />
-                <YAxis stroke="#8B95AC" fontSize={11} />
-                <Tooltip contentStyle={{ background: '#131B2E', border: '1px solid #232E45', borderRadius: 8, fontSize: 12 }} />
-                <Bar dataKey="requests" fill="#3ED6B5" radius={[4, 4, 0, 0]} />
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(240, 6%, 20%)" />
+                <XAxis dataKey="provider" stroke="hsl(240, 5%, 50%)" fontSize={11} />
+                <YAxis stroke="hsl(240, 5%, 50%)" fontSize={11} />
+                <Tooltip contentStyle={{ background: 'hsl(240, 10%, 6%)', border: '1px solid hsl(240, 6%, 20%)', borderRadius: 8, fontSize: 12, color: 'hsl(240, 5%, 65%)' }} />
+                <Bar dataKey="requests" fill="hsl(142, 76%, 36%)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           ) : (
-            <p className="text-muted text-sm py-16 text-center">No requests yet</p>
+            <p className="text-muted-foreground text-sm py-16 text-center">No requests yet</p>
           )}
         </div>
       </div>

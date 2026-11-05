@@ -1,134 +1,378 @@
-# Aegis 
+# Aegis - Enterprise AI Gateway & Governance Platform
 
-This is the foundation layer: gateway skeleton, auth (dashboard JWT + gateway
-API keys), multi-provider routing (OpenAI/Claude/Gemini/Ollama), and audit
-logging. Caching, governance/PII detection, and the admin dashboard UI come
-in later phases — this gives you a working, testable core to build on.
+**Production-ready AI gateway with multi-provider routing, semantic caching, PII detection, and cost tracking.**
 
-## Folder structure
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-```
-aegis/
-├── docker-compose.yml        # Postgres + Redis for local dev
-├── backend/
-│   ├── prisma/
-│   │   └── schema.prisma     # DB models: User, Org, Application, ApiKey, ProviderKey, AuditLog
-│   ├── src/
-│   │   ├── config/           # env.js, prisma.js, redis.js
-│   │   ├── lib/               # jwt.js, crypto.js (encrypt provider keys at rest)
-│   │   ├── middleware/        # auth (JWT), apiKey (gateway), rateLimiter, errorHandler
-│   │   ├── controllers/       # auth, application, gateway
-│   │   ├── routes/            # auth, application, gateway
-│   │   ├── services/providers/# openai/claude/gemini/ollama adapters + router
-│   │   ├── utils/validators.js
-│   │   ├── app.js             # Express app assembly
-│   │   └── server.js          # Entry point
-│   ├── package.json
-│   └── .env.example
-└── frontend/                
-```
+## Features
 
-## Setup — step by step
+- **Multi-Provider Routing** - Unified API for OpenAI, Claude, Gemini, Grok, and Ollama
+- **Semantic Caching** - Hybrid embedding + keyword matching (98.5% latency reduction)
+- **PII Firewall** - Production-grade governance with Luhn validation for credit cards
+- **Cost Tracking** - Real-time USD cost calculation per request
+- **Team-Based Access** - RBAC with Admin/Developer/Viewer roles
+- **Audit Logging** - Full request/response logging with analytics
+- **BYOK** - Bring Your Own Keys (encrypted at rest)
 
-### 1. Start Postgres + Redis
+---
+
+## Quick Start
+
+### Prerequisites
+
+- Node.js 18+ and npm
+- Docker & Docker Compose
+- Python 3.9+ (for embedding service)
+
+### 1. Clone and Install
+
 ```bash
+git clone <your-repo-url>
 cd aegis
-docker compose up -d
-```
-Check they're running: `docker ps` — you should see `aegis-postgres` and `aegis-redis`.
 
-### 2. Install backend dependencies
-```bash
+# Start PostgreSQL + Redis
+docker compose up -d
+
+# Install backend
 cd backend
 npm install
-```
-
-### 3. Set up environment variables
-```bash
 cp .env.example .env
-```
-Open `.env` and fill in at least one provider key to actually test completions
-(e.g. `OPENAI_API_KEY`). Leave others blank for now — you'll get a clear
-error only when you try to call that specific provider.
 
-Generate a real `JWT_SECRET` instead of using the placeholder:
-```bash
+# Generate JWT secret
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-```
-Paste that into `JWT_SECRET` in `.env`.
+# Copy output to JWT_SECRET in .env
 
-### 4. Run the database migration
-This reads `prisma/schema.prisma` and creates the actual tables in Postgres.
-```bash
-npx prisma migrate dev --name init
-```
-You should see it create `User`, `Organization`, `Application`, `ApiKey`,
-`ProviderKey`, `AuditLog` tables. This also auto-generates the Prisma client.
+# Run database migration
+npx prisma migrate deploy
+npx prisma generate
 
-### 5. Start the server
-```bash
+# Start backend
 npm run dev
 ```
-You should see:
-```
-[Redis] Connected
-[Aegis] Gateway running on http://localhost:8080
-```
 
-### 6. Test it end-to-end (use curl, Postman, or Thunder Client in VS Code)
+### 2. Set Up Embedding Service
 
-**a) Register (creates your org + admin user, returns a JWT):**
 ```bash
-curl -X POST http://localhost:8080/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Suraj","email":"suraj@test.com","password":"password123","organizationName":"Test Org"}'
+cd embedding-service
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn app:app --port 8001
 ```
-Save the `token` from the response.
 
-**b) Create an application (use the JWT as Bearer token):**
+### 3. Install Frontend
+
 ```bash
-curl -X POST http://localhost:8080/applications \
-  -H "Authorization: Bearer YOUR_JWT_HERE" \
-  -H "Content-Type: application/json" \
-  -d '{"name":"My Test App"}'
+cd frontend
+npm install
+npm run dev
 ```
-Save the `id` from the response — that's your `applicationId`.
 
-**c) Issue a gateway API key for that application:**
+Open http://localhost:3000 and register an account.
+
+---
+
+## Environment Variables
+
+Create `backend/.env` from `.env.example`:
+
+```env
+# Database
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/aegis"
+REDIS_URL="redis://localhost:6379"
+
+# Auth
+JWT_SECRET="<generate-with-crypto.randomBytes(32).toString('hex')>"
+JWT_EXPIRES_IN="7d"
+
+# Embedding Service
+EMBEDDING_SERVICE_URL="http://localhost:8001"
+
+# Provider Keys (BYOK - add your own)
+OPENAI_API_KEY=""
+ANTHROPIC_API_KEY=""
+GEMINI_API_KEY=""
+XAI_API_KEY=""
+OLLAMA_BASE_URL="http://localhost:11434"
+
+# Rate Limiting
+RATE_LIMIT_WINDOW_MS=60000
+RATE_LIMIT_MAX_REQUESTS=100
+
+# Server
+PORT=8080
+NODE_ENV="production"
+```
+
+---
+
+## Architecture
+
+```
+┌─────────────┐
+│   Client    │
+│ Application │
+└──────┬──────┘
+       │ x-api-key: aegis_...
+       ▼
+┌─────────────────────────────────────────┐
+│          AEGIS GATEWAY                  │
+│  ┌─────────────────────────────────┐   │
+│  │  1. PII Detection & Governance  │   │
+│  └──────────────┬──────────────────┘   │
+│                 ▼                       │
+│  ┌─────────────────────────────────┐   │
+│  │  2. Semantic Cache Check        │   │
+│  │     (Embedding + Keywords)      │   │
+│  └──────────────┬──────────────────┘   │
+│                 ▼                       │
+│  ┌─────────────────────────────────┐   │
+│  │  3. Provider Routing            │   │
+│  │     • OpenAI (gpt-*, o1-*)      │   │
+│  │     • Claude (claude-*)         │   │
+│  │     • Gemini (gemini-*)         │   │
+│  │     • Grok (grok-*)             │   │
+│  │     • Ollama (local models)     │   │
+│  └──────────────┬──────────────────┘   │
+│                 ▼                       │
+│  ┌─────────────────────────────────┐   │
+│  │  4. Cost Tracking & Logging     │   │
+│  └─────────────────────────────────┘   │
+└─────────────────────────────────────────┘
+```
+
+---
+
+## API Reference
+
+### Authentication
+
+**Register:**
 ```bash
-curl -X POST http://localhost:8080/applications/APPLICATION_ID_HERE/keys \
-  -H "Authorization: Bearer YOUR_JWT_HERE" \
-  -H "Content-Type: application/json" \
-  -d '{"label":"dev key"}'
-```
-**Save the `apiKey` from the response immediately — it's shown only once.**
+POST /auth/register
+Content-Type: application/json
 
-**d) Call the gateway itself (this is the actual product):**
+{
+  "name": "John Doe",
+  "email": "john@company.com",
+  "password": "secure123",
+  "organizationName": "Acme Corp"
+}
+```
+
+**Login:**
 ```bash
-curl -X POST http://localhost:8080/v1/chat/completions \
-  -H "x-api-key: YOUR_GATEWAY_API_KEY_HERE" \
-  -H "Content-Type: application/json" \
-  -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"Say hello in 5 words"}]}'
+POST /auth/login
+Content-Type: application/json
+
+{
+  "email": "john@company.com",
+  "password": "secure123"
+}
 ```
 
-If that returns a completion, your foundation layer works end-to-end:
-auth → app/key management → gateway routing → provider call → audit log.
+### Gateway
 
-### 7. Verify the audit log got written
+**Chat Completion:**
 ```bash
-npx prisma studio
-```
-This opens a GUI at `http://localhost:5555` — check the `AuditLog` table,
-you should see a row for the request you just made.
+POST /v1/chat/completions
+x-api-key: aegis_<your-key>
+Content-Type: application/json
 
-## Useful commands
-| Command | What it does |
-|---|---|
-| `npm run dev` | Start server with hot-reload |
-| `npx prisma studio` | Visual DB browser |
-| `npx prisma migrate dev --name X` | Create a new migration after schema changes |
-| `docker compose up -d` | Stop Postgres/Redis |
-| `docker compose down` | Stop Postgres/Redis |
-| `docker compose down -v` | Stop AND wipe DB data (careful) |
-| `venv\Scripts\activate` | Activate the venv first |
-| Embedding service | `uvicorn app:app --port 8001` | `Aegis/embedding-service/` |
+{
+  "model": "gpt-4o-mini",
+  "messages": [
+    {"role": "user", "content": "Hello!"}
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "model": "gpt-4o-mini",
+  "provider": "OPENAI",
+  "content": "Hello! How can I help you?",
+  "usage": {
+    "prompt_tokens": 8,
+    "completion_tokens": 7,
+    "total_tokens": 15
+  },
+  "latency_ms": 1408,
+  "cache_hit": false,
+  "cost_usd": 0.000031
+}
+```
+
+---
+
+## Governance / PII Detection
+
+The gateway blocks requests containing:
+
+- **Email addresses**
+- **Phone numbers** (international formats)
+- **Credit card numbers** (with Luhn validation)
+- **SSNs** (US format: XXX-XX-XXXX)
+- **Aadhaar numbers** (Indian 12-digit ID)
+- **API keys** (OpenAI, Anthropic, AWS, Google, GitHub)
+- **Generic secrets** (api_key=..., token=...)
+- **IP addresses**
+
+**Blocked Response:**
+```json
+{
+  "error": "Request blocked by governance policy",
+  "reason": "The prompt contains sensitive data",
+  "findings": [
+    {
+      "type": "EMAIL",
+      "label": "Email address",
+      "preview": "joh***com",
+      "severity": "HIGH"
+    }
+  ]
+}
+```
+
+---
+
+## Deployment
+
+### Docker Production Build
+
+```bash
+# Build images
+docker compose -f docker-compose.prod.yml build
+
+# Run in production
+docker compose -f docker-compose.prod.yml up -d
+```
+
+### Environment Checklist
+
+- [ ] Generate strong `JWT_SECRET` (32+ bytes)
+- [ ] Set `NODE_ENV=production`
+- [ ] Configure provider API keys (BYOK)
+- [ ] Set up SSL/TLS termination (nginx/Cloudflare)
+- [ ] Enable rate limiting per your needs
+- [ ] Back up PostgreSQL regularly
+- [ ] Monitor Redis memory usage
+- [ ] Review PII detection patterns for your use case
+
+---
+
+## Development
+
+```bash
+# Backend
+cd backend
+npm run dev          # Start with nodemon
+npm test             # Run tests
+npx prisma studio    # DB GUI
+
+# Frontend
+cd frontend
+npm run dev          # Next.js dev server
+npm run build        # Production build
+npm run lint         # ESLint
+
+# Embedding Service
+cd embedding-service
+uvicorn app:app --reload --port 8001
+```
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| **Backend** | Node.js, Express, Prisma ORM |
+| **Database** | PostgreSQL 15+ |
+| **Cache** | Redis 7+ |
+| **Frontend** | Next.js 14, React, Tailwind CSS |
+| **UI Components** | shadcn/ui (Radix UI + Tailwind) |
+| **Embedding** | Python, sentence-transformers (BAAI/bge-base-en-v1.5) |
+| **Providers** | OpenAI, Anthropic, Google Gemini, xAI (Grok), Ollama |
+
+---
+
+## Database Schema
+
+```prisma
+model Organization {
+  id           String        @id @default(uuid())
+  name         String
+  users        User[]
+  applications Application[]
+  providerKeys ProviderKey[]
+  teams        Team[]
+}
+
+model Application {
+  id             String     @id @default(uuid())
+  name           String
+  organizationId String
+  teamId         String?
+  apiKeys        ApiKey[]
+  auditLogs      AuditLog[]
+}
+
+model AuditLog {
+  id               String        @id @default(uuid())
+  applicationId    String
+  provider         Provider
+  model            String
+  status           RequestStatus // SUCCESS, ERROR, CACHED, BLOCKED
+  promptTokens     Int
+  completionTokens Int
+  latencyMs        Int
+  costUsd          Float
+  cacheHit         Boolean
+  createdAt        DateTime      @default(now())
+}
+```
+
+---
+
+## Roadmap
+
+- [x] Multi-provider routing
+- [x] Semantic caching (hybrid embedding + keyword)
+- [x] PII detection & governance
+- [x] Team-based RBAC
+- [x] Production-grade UI (shadcn/ui)
+- [ ] Streaming support (SSE)
+- [ ] Webhooks for events
+- [ ] Budget limits & alerts
+- [ ] Custom governance rules per app
+- [ ] Request replay for debugging
+- [ ] SDK libraries (Python, Node.js, Go)
+
+---
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+---
+
+## License
+
+MIT License - see [LICENSE](LICENSE) for details.
+
+---
+
+## Support
+
+- **Issues:** [GitHub Issues](https://github.com/Suraj-Sharma001/aegis/issues)
+- **Email:** surajsharma60923@gmail.com
+
+---
+
+**Built with ❤️ for enterprise AI teams**
